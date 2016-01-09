@@ -2,12 +2,13 @@
 # buBBle_client.py
 # Client for buBBle BBS
 # Version v00.00.01
-# Sat 26 Dec 2015 18:39:07
+# Sat 09 Jan 2016 15:15:36
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
 
 import wx
+import os
 import sys
 import socket
 import threading
@@ -20,13 +21,17 @@ server = "192.168.0.100"
 port = "8080"
 appicon = "res/bbicon.ico"
 
-keys = ["70002a3a92fb7a081fd277e9a80c227e",
-    "a5494db10f395190b8f90249366f095d",
-    "86f4b69a25537d96ecda6c6686057c53",
-    "c06cfd9462fd84a2183be13b3931b39e",
-    "b8d9b19e70295ec7c2fc50fbee2fc780",
-    "c64ef4ffca2551988e79f2005a8fb8a7"]
-
+keys = ['8cb680c7f6b6d08e3138ef45725bf86b',
+    '5cb7cfd5138caf4c75f2a2ad1dcc279b',
+    '076f24fad1448abcaeba2b471c1d28ed',
+    '3324d20392f91dbd1b4db27999be895e',
+    '286571c7905f9e747f50284c2b51692f',
+    'cb6a6cb6f612f4932d0a8da59c4c9563',
+    '6ed188b98f7619113a05ff5fab6cf570',
+    '2d3f6737f456feb4cc9f17514c81901f',
+    '428e7e6014747636915b49669753355d',
+    'b224505a8fa599a25a57646cb31603fd']
+x = len(keys)
 def main():
     """ Main entry point for the script."""
 
@@ -64,22 +69,26 @@ def main():
             # Define the Status Bar
             self.statusbar = self.CreateStatusBar()
 
-            self.userlabel = wx.StaticText(panel, label="Username:", size=(65, -1), style=wx.ALIGN_RIGHT) # Username label
-            self.userbox = wx.TextCtrl(panel, 5150, size=(265, -1), style=wx.TE_LEFT) # Username Textbox
-            self.passlabel = wx.StaticText(panel, label="  Password:", size=(65, -1), style=wx.ALIGN_RIGHT) # Password Label
-            self.passbox = wx.TextCtrl(panel, 5151, size=(265, -1), style=wx.TE_PASSWORD) # Password Textbox
+            self.userLabel = wx.StaticText(panel, label="Username:", size=(65, -1), style=wx.ALIGN_RIGHT) # Username label
+            self.userBox = wx.TextCtrl(panel, 5150, size=(265, -1), style=wx.TE_LEFT) # Username Textbox
+            self.passLabel = wx.StaticText(panel, label="  Password:", size=(65, -1), style=wx.ALIGN_RIGHT) # Password Label
+            self.passBox = wx.TextCtrl(panel, 5151, size=(265, -1), style=wx.TE_PASSWORD) # Password Textbox
 
-            self.chatBox = wx.TextCtrl(panel, 5155, size=(500, 300), style=wx.TE_LEFT|wx.TE_MULTILINE) # Chat Textbox
-            self.messageBox = wx.TextCtrl(panel, 5155, size=(-1, 50),style=wx.TE_LEFT|wx.TE_MULTILINE) # Message Textbox
+            self.chatBox = wx.TextCtrl(panel, 5250, size=(500, 300), style=wx.TE_LEFT|wx.TE_MULTILINE) # Chat Textbox
+            self.messageBox = wx.TextCtrl(panel, 5251, size=(-1, 50),style=wx.TE_LEFT|wx.TE_MULTILINE) # Message Textbox
             self.sendButton = wx.Button(panel, label="SEND!")
 
 
             # Binds!
-            self.userbox.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseOver) #Hover On Refresh
-            self.userbox.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave) #Hover Off Refresh
-            self.passbox.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseOver) #Hover On Refresh
-            self.passbox.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave) #Hover Off Refresh
-            #self.Bind(wx.EVT_BUTTON, self.OnSend, self.sendButton)
+            self.userBox.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseOver) #Hover On Refresh
+            self.userBox.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave) #Hover Off Refresh
+            self.passBox.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseOver) #Hover On Refresh
+            self.passBox.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave) #Hover Off Refresh
+            self.chatBox.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseOver) #Hover On Refresh
+            self.chatBox.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave) #Hover Off Refresh
+            self.messageBox.Bind(wx.EVT_ENTER_WINDOW, self.OnMouseOver) #Hover On Refresh
+            self.messageBox.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave) #Hover Off Refresh
+            self.Bind(wx.EVT_BUTTON, self.OnSend, self.sendButton)
 
             # Sizers!
             topSizer        = wx.BoxSizer(wx.VERTICAL)
@@ -90,12 +99,12 @@ def main():
             lowerSizer   = wx.BoxSizer(wx.HORIZONTAL)
 
             # Add stuff to userSizer
-            userSizer.Add(self.userlabel, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 2)
-            userSizer.Add(self.userbox, 0, wx.ALL|wx.EXPAND, 2)
+            userSizer.Add(self.userLabel, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 2)
+            userSizer.Add(self.userBox, 0, wx.ALL|wx.EXPAND, 2)
 
             # Add stuff to passSizer
-            passSizer.Add(self.passlabel, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 2)
-            passSizer.Add(self.passbox, 0, wx.ALL|wx.EXPAND, 2)
+            passSizer.Add(self.passLabel, 0, wx.ALIGN_RIGHT|wx.ALIGN_CENTER_VERTICAL, 2)
+            passSizer.Add(self.passBox, 0, wx.ALL|wx.EXPAND, 2)
 
             # Add stuff to the midSizer
             midSizer.Add(self.chatBox, 1, wx.ALIGN_LEFT|wx.ALIGN_CENTER_VERTICAL|wx.EXPAND, 2)
@@ -116,17 +125,35 @@ def main():
             panel.Layout()
             self.Show(True) # show shit!
 
-        # On-Hover functions for the refresh and settings buttons
+        # OnPull function to get posts from server
+        def OnPull(self):
+            pass
+
+        # OnSend function used to send a message to the server
+        def OnSend(self, event):
+            a = randint(0,x)
+            b = randint(0,x)
+            c = randint(0,x)
+            print "\033[91mX: \033[97m" + str(x) + "\033[91m A: \033[97m" + str(a) + "\033[91m B: \033[97m" + str(b) + "\033[91m C: \033[97m" + str(c)
+            pass
+
+        # OnMouseOver functions for widgets
         def OnMouseOver(self,event):
             widget_id = event.GetId()
             if widget_id == 5150:
                 self.statusbar.SetStatusText('5150')
+            elif widget_id == 5151:
+                self.statusbar.SetStatusText('5151')
             elif widget_id == 5250:
                 self.statusbar.SetStatusText('5250')
+            elif widget_id == 5251:
+                self.statusbar.SetStatusText('5251')
+
+        #OnMouseLeave function for widgets
         def OnMouseLeave(self,event):
             self.statusbar.SetStatusText('')
 
-        # Function called when a user closes the encoder.
+        # OnClose Function called when a user closes the encoder.
         def OnClose(self,event):
             dlg = wx.MessageDialog(self,
                 "Do you really want to close this application?",

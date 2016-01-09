@@ -2,7 +2,7 @@
 # buBBle-server.py
 # Bubble Server
 # Version 00.00.01
-# Sun 27 Dec 2015 23:24:36 
+# Sat 09 Jan 2016 15:15:36
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -19,12 +19,8 @@ port = "8080"       # Port used for ingest.
 conn = ""
 cur = ""
 
-keys = ["70002a3a92fb7a081fd277e9a80c227e",
-    "a5494db10f395190b8f90249366f095d",
-    "86f4b69a25537d96ecda6c6686057c53",
-    "c06cfd9462fd84a2183be13b3931b39e",
-    "b8d9b19e70295ec7c2fc50fbee2fc780",
-    "c64ef4ffca2551988e79f2005a8fb8a7"]
+
+
 
 
 def main():
