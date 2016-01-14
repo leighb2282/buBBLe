@@ -2,7 +2,7 @@
 # buBBle-server.py
 # Bubble Server
 # Version 00.00.01
-# Sat 09 Jan 2016 15:15:36
+# 1/13/2016, 11:49:10 AM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
