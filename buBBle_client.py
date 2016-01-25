@@ -6,7 +6,6 @@
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
-
 import wx
 import os
 import sys
@@ -17,20 +16,30 @@ import time
 from Crypto.Cipher import AES
 from random import randint
 
-# Set initial variables
+# Server IP (or FQDN)
 server = "192.168.0.100"
-port = "8080"
-appicon = "res/bbicon.ico"
+
+# Network Ports
+auth_port = "33751"       # Port used for Authentication.
+push_port = "33752"       # Port used for new incoming posts.
+pull_port = "33753"       # Port used for requesting posts.
+
+# Various Images (App Icon, in-app buttons)
 appicon = "res/bbicon.ico"
 srvon = "res/srv_online.png"
 srvoff = "res/srv_offline.png"
 usron = "res/usr_auth.png"
 usroff = "res/usr_unauth.png"
-daekill = 0
+
+# Pull thread status code
+pullT_status = 0
+
+# Status codes for Auth status and server status.
 usr_auth = 0 # 0 is unauthorized, 1 is Authorized
 srv_stat = 0 # 0 is Offline, 1 is Online
 
-keys = ['8cb680c7f6b6d08e3138ef45725bf86b',
+# mKeys is used for message encryption
+mKeys = ['8cb680c7f6b6d08e3138ef45725bf86b',
     '5cb7cfd5138caf4c75f2a2ad1dcc279b',
     '076f24fad1448abcaeba2b471c1d28ed',
     '3324d20392f91dbd1b4db27999be895e',
@@ -40,7 +49,22 @@ keys = ['8cb680c7f6b6d08e3138ef45725bf86b',
     '2d3f6737f456feb4cc9f17514c81901f',
     '428e7e6014747636915b49669753355d',
     'b224505a8fa599a25a57646cb31603fd']
-x = len(keys)
+mKeys_n = len(mKeys)
+
+# aKeys is used for encrypting the authentication string when sending it to the server.
+aKeys = ['52e85caef63299050e4e94f00b0c67c7',
+    '57f9b6a737ed012d213ef7d92452d0e2',
+    'f48e91a16995aa418c7c10e1b9c3d093',
+    '3d19cb97c2a9ec47e4744ece0ec5da95',
+    'c5220c28193b182bac76984fccbc9cfa',
+    '50c5e64345c5ae58bc07364a629f4f73',
+    '99c0edffd636bec9cebdd182b425cdff',
+    '26c4ed27f37e394efe0898de01a2817d',
+    '84dafaafacb4ea3b0870ab781f8bdbe0',
+    '56535b10858d4d4f53afbc8ad051d0e1']
+aKeys_n = len(aKeys)
+
+
 def main():
     """ Main entry point for the script."""
 
@@ -205,7 +229,7 @@ def main():
                 sys.exit() # App dedded :(
 
             srv_d = threading.Thread(name='recv daemon', target=daemon_srvstat)
-            srv_d.setDaemon(True)
+            #srv_d.setDaemon(True)
             srv_d.start()
 
         # OnPull function to get posts from server
@@ -224,13 +248,13 @@ def main():
         def OnMouseOver(self,event):
             widget_id = event.GetId()
             if widget_id == 5150:
-                self.statusbar.SetStatusText('5150')
+                self.statusbar.SetStatusText('Username')
             elif widget_id == 5151:
-                self.statusbar.SetStatusText('5151')
+                self.statusbar.SetStatusText('Password')
             elif widget_id == 5250:
-                self.statusbar.SetStatusText('5250')
+                self.statusbar.SetStatusText('Chat Box')
             elif widget_id == 5251:
-                self.statusbar.SetStatusText('5251')
+                self.statusbar.SetStatusText('MessageBox')
 
         #OnMouseLeave function for widgets
         def OnMouseLeave(self,event):

@@ -1,49 +1,114 @@
 #!/usr/bin/env python
 # buBBle-server.py
 # Bubble Server
-# Version 00.00.01
-# 1/13/2016, 11:49:10 AM
+# Version 00.00.02
+# 1/23/2016, 3:59:23 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
+import os
 import sys
 import socket
-import psycopg2
 import threading
+import time
+import psycopg2
 
 from Crypto.Cipher import AES
-from random import randint
+from random import randint # Remove once no longer needed.
 
 # Set initial variables
-port = "8080"       # Port used for ingest.
-conn = ""
-cur = ""
 
+# Network Ports
+auth_port = "33751"       # Port used for Authentication.
+push_port = "33752"       # Port used for new incoming posts.
+pull_port = "33753"       # Port used for requesting posts.
 
+# Thread status variables
+authT_status = 0
+postT_status = 0
+pullT_status = 0
 
-
+# aKeys is used for encrypting the authentication string when sending it to the server.
+aKeys = ['52e85caef63299050e4e94f00b0c67c7',
+    '57f9b6a737ed012d213ef7d92452d0e2',
+    'f48e91a16995aa418c7c10e1b9c3d093',
+    '3d19cb97c2a9ec47e4744ece0ec5da95',
+    'c5220c28193b182bac76984fccbc9cfa',
+    '50c5e64345c5ae58bc07364a629f4f73',
+    '99c0edffd636bec9cebdd182b425cdff',
+    '26c4ed27f37e394efe0898de01a2817d',
+    '84dafaafacb4ea3b0870ab781f8bdbe0',
+    '56535b10858d4d4f53afbc8ad051d0e1']
+aKeys_n = len(aKeys)
 
 def main():
     """ Main entry point for the script."""
     global conn
     global cur
 
-    host = getNetworkIp()
+    # Authentication Function.
+    # Used to check credentials against the users table. Is used by all 3 threads.
+    def auth_chk(un, pw):
+        pass
 
-    db-conn = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
-    db-cur = db-conn.cursor()
+    # Auth Thread.
+    # Used to auth users either via the 'Auth button or when someone sends a message.
+    def daemon_auth():
+        server = getNetworkIp()
+        global authT_status
+        while authT_status == 0:
+            self.server_connection = socket.socket()
+            self.server_connection.connect((server, auth_port))
+        pass
 
-    db-cur.execute('SELECT * from users WHERE username = %r' % (str(thisistheincomingusernamevariable)))
-    row = db-cur.fetchone()
-    did = row[1].rstrip()
-    dpass = row[2].rstrip()
-    db-conn.close()
+    # Post Thread.
+    # Used to store posts into the relevant databases.
+    def daemon_post():
+        y = 0
+        global postT_status
+        while y < 10:
+            b = randint(0,5)
+            print "\033[92mPost "+ str(y) + " sleeping for " + str(b) + " Seconds.\n"
+            time.sleep(b)
+            y = y + 1
+            postT_status = postT_status + b
+        print "\033[91mPost total: " + str(postT_status) + "\n"
+        pass
+
+    # Pull Thread
+    # Used to deliver posts from the relevant database to a client.
+    def daemon_pull():
+        z = 0
+        global pullT_status
+        while z < 10:
+            c = randint(0,5)
+            print "\033[93mPull "+ str(z) + " sleeping for " + str(c) + " Seconds.\n"
+            time.sleep(c)
+            z = z + 1
+            pullT_status = pullT_status + c
+        print "\033[91mPull total: " + str(pullT_status) + "\n"
+        pass
+
+    # Setting up the threads.
+    auth_d = threading.Thread(name='auth daemon', target=daemon_auth)
+    post_d = threading.Thread(name='post daemon', target=daemon_post)
+    pull_d = threading.Thread(name='pull daemon', target=daemon_pull)
+
+    # Pretty certain no need for daemonic threading
+    #auth_d.setDaemon(True)
+    #post_d.setDaemon(True)
+    #pull_d.setDaemon(True)
+
+    # Start them threads.
+    auth_d.start()
+    post_d.start()
+    pull_d.start()
     pass
 
-def getNetworkIp():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('8.8.8.8', 0))
-    return s.getsockname()[0]
+    def getNetworkIp():
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 0))
+        return s.getsockname()[0]
 
 if __name__ == '__main__':
     sys.exit(main())
