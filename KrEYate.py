@@ -1,27 +1,37 @@
 #!/usr/bin/env python
 # KrEYate.py
-# quick keypass creation tool
-# Version v00.00.01
-# Tue 15 Dec 2015 22:07:39
+# quick Key-Deck creation tool
+# Version v1.2.0
+# 1/25/2016, 2:28:46 PM
 # Leigh Burton, lburton@metacache.net
 
 import sys
 import hashlib
-from random import randint
+from Crypto.Cipher import AES
 
-inputfile = "input.txt"
-
+infile = "input.txt"
+outfile = "bubble_keys.crypt"
 keysetup = []
-
 def main():
-    x = 0
     try:
-        open_input = open(inputfile, "r")
+        open_input = open(infile, "r")
         for i in open_input:
             outhash = hashlib.md5(i).hexdigest()
             keysetup.append(outhash)
-            x = x + 1
-        print "keys = " + str(keysetup)
+        open_input.close()
+        uncrypt = str(keysetup)
+        messlen = len(uncrypt)
+        num2fill = 16 - (messlen % 16)
+        tocrypt = (uncrypt + " " * num2fill)
+
+        cryptokey = raw_input("\033[93mFile Phrase:\033[97m ")
+        cryptohash = hashlib.md5(cryptokey).hexdigest()
+        crypto = AES.new(cryptohash, AES.MODE_CBC, cryptohash[:16])
+        encrypted = crypto.encrypt(tocrypt)
+
+        f = open(outfile, "w")
+        f.write(str(encrypted))
+        f.close()
     except:
         print "Error Occured"
 if __name__ == '__main__':
