@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_client.py
 # Client for buBBle BBS
-# Version v00.00.10
-# 1/13/2016, 11:48:57 AM
+# Version v0.1.0
+# 1/26/2016, 4:18:13 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -10,6 +10,7 @@ import wx
 import os
 import sys
 import socket
+import hashlib
 import threading
 import time
 
@@ -38,20 +39,19 @@ pullT_status = 0
 usr_auth = 0 # 0 is unauthorized, 1 is Authorized
 srv_stat = 0 # 0 is Offline, 1 is Online
 
-# mKeys is used for message encryption
-mKeys = ['8cb680c7f6b6d08e3138ef45725bf86b',
-    '5cb7cfd5138caf4c75f2a2ad1dcc279b',
-    '076f24fad1448abcaeba2b471c1d28ed',
-    '3324d20392f91dbd1b4db27999be895e',
-    '286571c7905f9e747f50284c2b51692f',
-    'cb6a6cb6f612f4932d0a8da59c4c9563',
-    '6ed188b98f7619113a05ff5fab6cf570',
-    '2d3f6737f456feb4cc9f17514c81901f',
-    '428e7e6014747636915b49669753355d',
-    'b224505a8fa599a25a57646cb31603fd']
-mKeys_n = len(mKeys)
+# Key-Deck location for mkeys, v1.0.0 will only have ability to load existing keydeck file created by KrEYate.py.
+# User will be asked to enter their Key-Deck passphrase when looking in the KeyDeck options.
+# OR when Authenticating against the server (will redirect to Key-Deck options if a key-deck not loaded).
+keydeck = "bubble_keys.crypt"
+
+# mKeys is used for message encryption, loaded via a Key-Deck.
+mKeys = [] # Holds the different encryption keys.
+mKeys_n = len(mKeys) # Holds the number of keys in mKeys.
+mKeys_t = "" # Holds the Key-Deck's Title.
+mKeys_s = "" # Holds the Key-Deck's Status.
 
 # aKeys is used for encrypting the authentication string when sending it to the server.
+# This really only provides a degree of encryption against on-the-wire attempts at getting credentials.
 aKeys = ['52e85caef63299050e4e94f00b0c67c7',
     '57f9b6a737ed012d213ef7d92452d0e2',
     'f48e91a16995aa418c7c10e1b9c3d093',
@@ -62,14 +62,221 @@ aKeys = ['52e85caef63299050e4e94f00b0c67c7',
     '26c4ed27f37e394efe0898de01a2817d',
     '84dafaafacb4ea3b0870ab781f8bdbe0',
     '56535b10858d4d4f53afbc8ad051d0e1']
-aKeys_n = len(aKeys)
+aKeys_n = len(aKeys) # Holds the number of keys in aKeys.
 
 
 def main():
-    """ Main entry point for the script."""
+    """ Main entry point for buBBle."""
+
+    ########################################################
+    # Start of Key Deck Options Class code and subroutines #
+    ########################################################
+    class keydeckFrame(wx.Frame):
+        def __init__(self, parent, id):
+            wx.Frame.__init__(self, parent, -1,
+                              title="Key-Deck Options",
+                              style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER ^ wx.MINIMIZE_BOX ^ wx.MAXIMIZE_BOX)
+            self.picon = wx.Icon(appicon, wx.BITMAP_TYPE_ICO)
+            self.SetIcon(self.picon)
+            panel = wx.Panel(self,wx.ID_ANY)
+
+            self.titleBox = wx.TextCtrl(panel, style=wx.TE_LEFT|wx.TE_READONLY) # Key-Deck name
+
+            self.k0label = wx.StaticText(panel, label="0: ") # Key 0 Label
+            self.k0box = wx.TextCtrl(panel, style=wx.TE_LEFT|wx.TE_READONLY) # Key 0 Textbox
+
+            self.k1label = wx.StaticText(panel, label="1: ") # Key 1 Label
+            self.k1box = wx.TextCtrl(panel, style=wx.TE_LEFT|wx.TE_READONLY) # Key 1 Textbox
+
+            self.k2label = wx.StaticText(panel, label="2: ") # Key 2 Label
+            self.k2box = wx.TextCtrl(panel, style=wx.TE_LEFT|wx.TE_READONLY) # Key 2 Textbox
+
+            self.k3label = wx.StaticText(panel, label="3: ") # Key 3 Label
+            self.k3box = wx.TextCtrl(panel, style=wx.TE_LEFT|wx.TE_READONLY) # Key 3 Textbox
+
+            self.k4label = wx.StaticText(panel, label="4: ") # Key 4 Label
+            self.k4box = wx.TextCtrl(panel, style=wx.TE_LEFT|wx.TE_READONLY) # Key 4 Textbox
+
+            self.k5label = wx.StaticText(panel, label=" :5") # Key 5 Label
+            self.k5box = wx.TextCtrl(panel, style=wx.TE_RIGHT|wx.TE_READONLY) # Key 5 Textbox
+
+            self.k6label = wx.StaticText(panel, label=" :6") # Key 6 Label
+            self.k6box = wx.TextCtrl(panel, style=wx.TE_RIGHT|wx.TE_READONLY) # Key 6 Textbox
+
+            self.k7label = wx.StaticText(panel, label=" :7") # Key 7 Label
+            self.k7box = wx.TextCtrl(panel, style=wx.TE_RIGHT|wx.TE_READONLY) # Key 7 Textbox
+
+            self.k8label = wx.StaticText(panel, label=" :8") # Key 8 Label
+            self.k8box = wx.TextCtrl(panel, style=wx.TE_RIGHT|wx.TE_READONLY) # Key 8 Textbox
+
+            self.k9label = wx.StaticText(panel, label=" :9") # Key 9 Label
+            self.k9box = wx.TextCtrl(panel, style=wx.TE_RIGHT|wx.TE_READONLY) # Key 9 Textbox
+
+            self.okButton = wx.Button(panel, label="OK")
+            #self.cancelButton = wx.Button(panel, label="Cancel")
+
+            self.Bind(wx.EVT_BUTTON, self.onOK, self.okButton)
+            #self.Bind(wx.EVT_BUTTON, self.onClose, self.cancelButton)
+            self.Bind(wx.EVT_CLOSE, self.onClose)
+
+            #Sizers!
+            topSizer        = wx.BoxSizer(wx.VERTICAL)
+            keySizer      = wx.BoxSizer(wx.HORIZONTAL)
+            titleSizer      = wx.BoxSizer(wx.HORIZONTAL)
+            keyLSizer      = wx.BoxSizer(wx.VERTICAL)
+            keyRSizer      = wx.BoxSizer(wx.VERTICAL)
+            loc0Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc1Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc2Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc3Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc4Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc5Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc6Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc7Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc8Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            loc9Sizer   = wx.BoxSizer(wx.HORIZONTAL)
+            btnSizer        = wx.BoxSizer(wx.HORIZONTAL)
+
+            titleSizer.Add(self.titleBox, 1, wx.ALL|wx.EXPAND, 2)
+
+            loc0Sizer.Add(self.k0label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+            loc0Sizer.Add(self.k0box, 1, wx.ALL|wx.EXPAND, 2)
+
+            loc1Sizer.Add(self.k1label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+            loc1Sizer.Add(self.k1box, 1, wx.ALL|wx.EXPAND, 2)
+
+            loc2Sizer.Add(self.k2label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+            loc2Sizer.Add(self.k2box, 1, wx.ALL|wx.EXPAND, 2)
+
+            loc3Sizer.Add(self.k3label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+            loc3Sizer.Add(self.k3box, 1, wx.ALL|wx.EXPAND, 2)
+
+            loc4Sizer.Add(self.k4label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+            loc4Sizer.Add(self.k4box, 1, wx.ALL|wx.EXPAND, 2)
+
+            loc5Sizer.Add(self.k5box, 1, wx.ALL|wx.EXPAND, 2)
+            loc5Sizer.Add(self.k5label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+
+            loc6Sizer.Add(self.k6box, 1, wx.ALL|wx.EXPAND, 2)
+            loc6Sizer.Add(self.k6label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+
+            loc7Sizer.Add(self.k7box, 1, wx.ALL|wx.EXPAND, 2)
+            loc7Sizer.Add(self.k7label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+
+            loc8Sizer.Add(self.k8box, 1, wx.ALL|wx.EXPAND, 2)
+            loc8Sizer.Add(self.k8label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+
+            loc9Sizer.Add(self.k9box, 1, wx.ALL|wx.EXPAND, 2)
+            loc9Sizer.Add(self.k9label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
+
+            btnSizer.Add(self.okButton, 0, wx.ALL, 2)
+            #btnSizer.Add(self.cancelButton, 0, wx.ALL, 2)
+
+            keyLSizer.Add(loc0Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyLSizer.Add(loc1Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyLSizer.Add(loc2Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyLSizer.Add(loc3Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyLSizer.Add(loc4Sizer, 1, wx.ALL|wx.EXPAND, 1)
+
+            keyRSizer.Add(loc5Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyRSizer.Add(loc6Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyRSizer.Add(loc7Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyRSizer.Add(loc8Sizer, 1, wx.ALL|wx.EXPAND, 1)
+            keyRSizer.Add(loc9Sizer, 1, wx.ALL|wx.EXPAND, 1)
+
+            keySizer.Add(keyLSizer, 1, wx.ALL|wx.EXPAND, 1)
+            keySizer.Add(keyRSizer, 1, wx.ALL|wx.EXPAND, 1)
+
+            topSizer.Add(titleSizer, 0, wx.ALL|wx.EXPAND, 0)
+            topSizer.Add(wx.StaticLine(panel, size=(520, 1)), 0, wx.ALL|wx.EXPAND, 0)
+            topSizer.Add(keySizer, 1, wx.ALL|wx.EXPAND, 0)
+            topSizer.Add(wx.StaticLine(panel, size=(520, 1)), 0, wx.ALL|wx.EXPAND, 0)
+            topSizer.Add(btnSizer, 0, wx.ALL|wx.CENTER, 5)
+
+            panel.SetSizer(topSizer)
+            topSizer.Fit(self)
 
 
-    # Start of GUI happiness
+            self.CenterOnParent()
+            self.GetParent().Enable(False)
+            self.Show(True)
+            self.onLoad(keydeck)
+            self.__eventLoop = wx.EventLoop()
+            self.__eventLoop.Run()
+
+
+        def onClose(self, event):
+            self.GetParent().Enable(True)
+            self.__eventLoop.Exit()
+            self.Destroy()
+
+        def onOK(self, event):
+            self.GetParent().Enable(True)
+            self.__eventLoop.Exit()
+            self.Destroy()
+
+        def onLoad(self, event):
+            global mKeys_s
+            global mKeys_n
+            global mKeys_t
+            global mKeys
+            #try:
+            if mKeys_s == 'VALID':
+                self.titleBox.SetValue(mKeys_t)
+                self.k0box.SetValue(mKeys[0])
+                self.k1box.SetValue(mKeys[1])
+                self.k2box.SetValue(mKeys[2])
+                self.k3box.SetValue(mKeys[3])
+                self.k4box.SetValue(mKeys[4])
+                self.k5box.SetValue(mKeys[5])
+                self.k6box.SetValue(mKeys[6])
+                self.k7box.SetValue(mKeys[7])
+                self.k8box.SetValue(mKeys[8])
+                self.k9box.SetValue(mKeys[9])
+            else:
+                dlg = wx.TextEntryDialog(None,"Enter Key-Deck's Passphrase")
+                ret = dlg.ShowModal()
+                if ret == wx.ID_OK:
+                    cryptokey = dlg.GetValue()
+                    open_keyfile = open(keydeck, "r")
+                    cryptohash = hashlib.md5(cryptokey).hexdigest()
+
+                    to_decrypt = open_keyfile.read()
+                    decrypto = AES.new(cryptohash, AES.MODE_CBC, cryptohash[:16])
+                    decrypted = decrypto.decrypt(str(to_decrypt))
+
+                    mKeys = decrypted.replace(" ", "").replace("[", "").replace("]", "").replace("'", "").split(",")
+                    open_keyfile.close()
+                    if mKeys[0] == 'VALID':
+                        print "Decrypted Successfully"
+                        mKeys_s = mKeys[0]
+                        del mKeys[0]
+                        mKeys_t = mKeys[0]
+                        self.titleBox.SetValue(mKeys_t)
+                        del mKeys[0]
+                        mKeys_n = len(mKeys)
+                        self.k0box.SetValue(mKeys[0])
+                        self.k1box.SetValue(mKeys[1])
+                        self.k2box.SetValue(mKeys[2])
+                        self.k3box.SetValue(mKeys[3])
+                        self.k4box.SetValue(mKeys[4])
+                        self.k5box.SetValue(mKeys[5])
+                        self.k6box.SetValue(mKeys[6])
+                        self.k7box.SetValue(mKeys[7])
+                        self.k8box.SetValue(mKeys[8])
+                        self.k9box.SetValue(mKeys[9])
+                    else:
+                        print "Decrypt Failed."
+                else:
+                    pass
+                dlg.Destroy()
+            #except:
+            #    print "Error Occured"
+
+
+    ################################################
+    # Start of Main GUI Class code and subroutines #
+    ################################################
     class buBBle_client(wx.Frame):
         def __init__(self, parent, title):
             wx.Frame.__init__(self, parent, title=title, style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER ^ wx.MINIMIZE_BOX ^ wx.MAXIMIZE_BOX) # Init the frame
@@ -84,9 +291,12 @@ def main():
 
             # Define the File Menu.
             f_menu = wx.Menu()
-            self.m_save = f_menu.Append(wx.ID_SAVE, "&Save\tAlt-S", "Save Chatlog.")
-            self.m_exit = f_menu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Close window and exit program.")
-            self.Bind(wx.EVT_MENU, self.OnClose, self.m_exit)
+            self.f_keys = f_menu.Append(wx.ID_SAVE, "&Key-Deck\tAlt-K", "Key-Deck Options")
+            self.f_save = f_menu.Append(wx.ID_SAVE, "&Save\tAlt-S", "Save Chatlog.")
+            self.f_exit = f_menu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Close window and exit program.")
+
+            self.Bind(wx.EVT_MENU, self.OnKeyOpts, self.f_keys)
+            self.Bind(wx.EVT_MENU, self.OnClose, self.f_exit)
             menuBar.Append(f_menu, "&File")
 
             # Define the Help Menu
@@ -191,46 +401,50 @@ def main():
             self.Show(True) # show shit!
 
             def daemon_srvstat():
-                global daekill
+                global pullT_status
                 global srv_stat
 
-                try:
-                    while daekill == 0:
-                        print "Daemon: " + str(daekill)
-                        srvping = os.system("ping -W 1 -qc 1 " + server + "> /dev/null 2>&1")
-                        print "Ping: " + str(srvping)
-                        if srvping == 0:
-                            self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgon))
-                            srv_stat = 1
-                            if usr_auth == 0:
-                                self.messageBox.Enable(False)
-                                self.sendButton.Enable(False)
-                                self.userBox.Enable(True)
-                                self.passBox.Enable(True)
-                                self.connButton.Enable(True)
-                            elif usr_auth == 1:
-                                self.messageBox.Enable(True)
-                                self.sendButton.Enable(True)
-                                self.userBox.Enable(False)
-                                self.passBox.Enable(False)
-                                self.connButton.Enable(False)
-                        else:
-                            self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgoff))
-                            srv_stat = 0
+                #try:
+                while pullT_status == 0:
+                    print "Daemon: " + str(pullT_status)
+                    srvping = os.system("ping -W 1 -qc 1 " + server + "> /dev/null 2>&1")
+                    print "Ping: " + str(srvping)
+                    if srvping == 0:
+                        self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgon))
+                        srv_stat = 1
+                        if usr_auth == 0:
                             self.messageBox.Enable(False)
                             self.sendButton.Enable(False)
+                            self.userBox.Enable(True)
+                            self.passBox.Enable(True)
+                            self.connButton.Enable(True)
+                        elif usr_auth == 1:
+                            self.messageBox.Enable(True)
+                            self.sendButton.Enable(True)
                             self.userBox.Enable(False)
                             self.passBox.Enable(False)
                             self.connButton.Enable(False)
-                        time.sleep(1)
-                except:
-                    print "Error in Daemon."
+                    else:
+                        self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgoff))
+                        srv_stat = 0
+                        self.messageBox.Enable(False)
+                        self.sendButton.Enable(False)
+                        self.userBox.Enable(False)
+                        self.passBox.Enable(False)
+                        self.connButton.Enable(False)
+                    time.sleep(1)
+                #except:
+                #    print "Error in Daemon."
                 self.Destroy() # GUI dedded :(
                 sys.exit() # App dedded :(
 
             srv_d = threading.Thread(name='recv daemon', target=daemon_srvstat)
             #srv_d.setDaemon(True)
             srv_d.start()
+
+        # File>Key-Deck Options
+        def OnKeyOpts(self,event):
+            dialog = keydeckFrame(self, -1)
 
         # OnPull function to get posts from server
         def OnPull(self):
@@ -262,7 +476,7 @@ def main():
 
         # OnClose Function called when a user closes the encoder.
         def OnClose(self,event):
-            global daekill
+            global pullT_status
             dlg = wx.MessageDialog(self,
                 "Do you really want to close this application?",
                 "Confirm Exit", wx.OK|wx.CANCEL|wx.ICON_QUESTION)
@@ -270,7 +484,7 @@ def main():
             dlg.Destroy()
             if result == wx.ID_OK:
                 print "\033[91mApp killed by File|Exit or App's 'x' button"
-                daekill = 1
+                pullT_status = 1
             else:
                 print "\033[93mUser chose not to close the App."
 

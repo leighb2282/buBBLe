@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # KrEYate.py
 # quick Key-Deck creation tool
-# Version v1.2.0
-# 1/25/2016, 2:28:46 PM
+# Version v1.2.2
+# 1/26/2016, 12:04:37 AM
 # Leigh Burton, lburton@metacache.net
 
 import sys
@@ -14,6 +14,9 @@ outfile = "bubble_keys.crypt"
 keysetup = []
 def main():
     try:
+        keysetup.append('VALID')
+        keydeck_title = raw_input("\033[93mKey-Deck Name:\033[97m ")
+        keysetup.append(keydeck_title)
         open_input = open(infile, "r")
         for i in open_input:
             outhash = hashlib.md5(i).hexdigest()

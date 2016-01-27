@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # deKrEYpt.py
 # quick Key-Deck decryption tool
-# Version v1.0.0
-# 1/25/2016, 2:28:33 PM
+# Version v1.0.2
+# 1/26/2016, 12:04:28 AM
 # Leigh Burton, lburton@metacache.net
 
 import sys
@@ -24,9 +24,15 @@ def main():
 
         keydecrypted = decrypted.replace(" ", "").replace("[", "").replace("]", "").replace("'", "").split(",")
         open_keyfile.close()
-
-        for key in keydecrypted:
-            print key
+        if keydecrypted[0] == 'VALID':
+            print "Decrypted Successfully"
+            del keydecrypted[0]
+            print "KeyDeck Title: " + keydecrypted[0]
+            del keydecrypted[0]
+            for key in keydecrypted:
+                print key
+        else:
+            print "Decrypt Failed."
     except:
         print "Error Occured"
 if __name__ == '__main__':
