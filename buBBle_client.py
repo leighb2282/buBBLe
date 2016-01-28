@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_client.py
 # Client for buBBle BBS
-# Version v0.1.0
-# 1/26/2016, 4:18:13 PM
+# Version v0.2.0
+# 1/27/2016, 5:42:03 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -46,7 +46,7 @@ keydeck = "bubble_keys.crypt"
 
 # mKeys is used for message encryption, loaded via a Key-Deck.
 mKeys = [] # Holds the different encryption keys.
-mKeys_n = len(mKeys) # Holds the number of keys in mKeys.
+mKeys_n = len(mKeys) - 1 # Holds the number of keys in mKeys.
 mKeys_t = "" # Holds the Key-Deck's Title.
 mKeys_s = "" # Holds the Key-Deck's Status.
 
@@ -62,8 +62,13 @@ aKeys = ['52e85caef63299050e4e94f00b0c67c7',
     '26c4ed27f37e394efe0898de01a2817d',
     '84dafaafacb4ea3b0870ab781f8bdbe0',
     '56535b10858d4d4f53afbc8ad051d0e1']
-aKeys_n = len(aKeys) # Holds the number of keys in aKeys.
+aKeys_n = len(aKeys) -1 # Holds the number of keys in aKeys.
 
+# Location for Username and Password credentials.
+usr_cred = ['','','']
+
+# Variable to hold Auth string.
+auth_out = ""
 
 def main():
     """ Main entry point for buBBle."""
@@ -73,6 +78,7 @@ def main():
     ########################################################
     class keydeckFrame(wx.Frame):
         def __init__(self, parent, id):
+            global keydeck
             wx.Frame.__init__(self, parent, -1,
                               title="Key-Deck Options",
                               style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER ^ wx.MINIMIZE_BOX ^ wx.MAXIMIZE_BOX)
@@ -201,8 +207,10 @@ def main():
             self.GetParent().Enable(False)
             self.Show(True)
             self.onLoad(keydeck)
-            self.__eventLoop = wx.EventLoop()
-            self.__eventLoop.Run()
+
+            if mKeys_s == "VALID":
+                self.__eventLoop = wx.EventLoop()
+                self.__eventLoop.Run()
 
 
         def onClose(self, event):
@@ -220,58 +228,66 @@ def main():
             global mKeys_n
             global mKeys_t
             global mKeys
-            #try:
-            if mKeys_s == 'VALID':
-                self.titleBox.SetValue(mKeys_t)
-                self.k0box.SetValue(mKeys[0])
-                self.k1box.SetValue(mKeys[1])
-                self.k2box.SetValue(mKeys[2])
-                self.k3box.SetValue(mKeys[3])
-                self.k4box.SetValue(mKeys[4])
-                self.k5box.SetValue(mKeys[5])
-                self.k6box.SetValue(mKeys[6])
-                self.k7box.SetValue(mKeys[7])
-                self.k8box.SetValue(mKeys[8])
-                self.k9box.SetValue(mKeys[9])
-            else:
-                dlg = wx.TextEntryDialog(None,"Enter Key-Deck's Passphrase")
-                ret = dlg.ShowModal()
-                if ret == wx.ID_OK:
-                    cryptokey = dlg.GetValue()
-                    open_keyfile = open(keydeck, "r")
-                    cryptohash = hashlib.md5(cryptokey).hexdigest()
-
-                    to_decrypt = open_keyfile.read()
-                    decrypto = AES.new(cryptohash, AES.MODE_CBC, cryptohash[:16])
-                    decrypted = decrypto.decrypt(str(to_decrypt))
-
-                    mKeys = decrypted.replace(" ", "").replace("[", "").replace("]", "").replace("'", "").split(",")
-                    open_keyfile.close()
-                    if mKeys[0] == 'VALID':
-                        print "Decrypted Successfully"
-                        mKeys_s = mKeys[0]
-                        del mKeys[0]
-                        mKeys_t = mKeys[0]
-                        self.titleBox.SetValue(mKeys_t)
-                        del mKeys[0]
-                        mKeys_n = len(mKeys)
-                        self.k0box.SetValue(mKeys[0])
-                        self.k1box.SetValue(mKeys[1])
-                        self.k2box.SetValue(mKeys[2])
-                        self.k3box.SetValue(mKeys[3])
-                        self.k4box.SetValue(mKeys[4])
-                        self.k5box.SetValue(mKeys[5])
-                        self.k6box.SetValue(mKeys[6])
-                        self.k7box.SetValue(mKeys[7])
-                        self.k8box.SetValue(mKeys[8])
-                        self.k9box.SetValue(mKeys[9])
-                    else:
-                        print "Decrypt Failed."
+            try:
+                if mKeys_s == 'VALID':
+                    self.titleBox.SetValue(mKeys_t)
+                    self.k0box.SetValue(mKeys[0])
+                    self.k1box.SetValue(mKeys[1])
+                    self.k2box.SetValue(mKeys[2])
+                    self.k3box.SetValue(mKeys[3])
+                    self.k4box.SetValue(mKeys[4])
+                    self.k5box.SetValue(mKeys[5])
+                    self.k6box.SetValue(mKeys[6])
+                    self.k7box.SetValue(mKeys[7])
+                    self.k8box.SetValue(mKeys[8])
+                    self.k9box.SetValue(mKeys[9])
                 else:
-                    pass
-                dlg.Destroy()
-            #except:
-            #    print "Error Occured"
+                    dlg = wx.TextEntryDialog(None,"Enter Key-Deck's Passphrase")
+                    ret = dlg.ShowModal()
+                    if ret == wx.ID_OK:
+                        cryptokey = dlg.GetValue()
+                        open_keyfile = open(keydeck, "r")
+                        cryptohash = hashlib.md5(cryptokey).hexdigest()
+
+                        to_decrypt = open_keyfile.read()
+                        decrypto = AES.new(cryptohash, AES.MODE_CBC, cryptohash[:16])
+                        decrypted = decrypto.decrypt(str(to_decrypt))
+
+                        mKeys = decrypted.replace(" ", "").replace("[", "").replace("]", "").replace("'", "").split(",")
+                        open_keyfile.close()
+                        if mKeys[0] == 'VALID':
+                            print "Decrypted Successfully"
+                            mKeys_s = mKeys[0]
+                            del mKeys[0]
+                            mKeys_t = mKeys[0]
+                            self.titleBox.SetValue(mKeys_t)
+                            del mKeys[0]
+                            mKeys_n = len(mKeys)
+                            self.k0box.SetValue(mKeys[0])
+                            self.k1box.SetValue(mKeys[1])
+                            self.k2box.SetValue(mKeys[2])
+                            self.k3box.SetValue(mKeys[3])
+                            self.k4box.SetValue(mKeys[4])
+                            self.k5box.SetValue(mKeys[5])
+                            self.k6box.SetValue(mKeys[6])
+                            self.k7box.SetValue(mKeys[7])
+                            self.k8box.SetValue(mKeys[8])
+                            self.k9box.SetValue(mKeys[9])
+                        else:
+                            ips = wx.MessageDialog(self,
+                            "Invalid Passphrase entered.",
+                            "Decrypt Failed", wx.OK|wx.ICON_QUESTION)
+                            result = ips.ShowModal()
+                            ips.Destroy()
+                            self.GetParent().Enable(True)
+                            self.Destroy()
+                    else:
+                        dlg.Destroy()
+                        self.GetParent().Enable(True)
+                        self.Destroy()
+                    dlg.Destroy()
+            except:
+                print "Error Occured"
 
 
     ################################################
@@ -327,6 +343,8 @@ def main():
 
             # Authenticate button and server status image
             self.connButton = wx.Button(panel, size=(100, -1), label="AUTH!")
+            self.Bind(wx.EVT_BUTTON, self.OnAuth, self.connButton)
+
             self.usrstatBitmap = wx.StaticBitmap(panel, wx.ID_ANY, wx.BitmapFromImage(usr_imgoff))
             self.srvstatBitmap = wx.StaticBitmap(panel, wx.ID_ANY, wx.BitmapFromImage(emptyimg))
 
@@ -406,9 +424,9 @@ def main():
 
                 #try:
                 while pullT_status == 0:
-                    print "Daemon: " + str(pullT_status)
+                    #print "Daemon: " + str(pullT_status)
                     srvping = os.system("ping -W 1 -qc 1 " + server + "> /dev/null 2>&1")
-                    print "Ping: " + str(srvping)
+                    #print "Ping: " + str(srvping)
                     if srvping == 0:
                         self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgon))
                         srv_stat = 1
@@ -450,6 +468,79 @@ def main():
         def OnPull(self):
             pass
 
+        # OnAuth function used to send a message to the server
+        def OnAuth(self, event):
+            global mKeys_s
+            global keydeck
+            global usr_auth
+            global usr_cred
+            global auth_out
+
+            auth_sel = ['','']
+
+            if mKeys_s == "VALID": # If we have a KeyDeck Loaded try to authenticate.
+                ###########################################
+                # THIS IS WHERE WE START THE AUTH PROCESS #
+                ###########################################
+                usr_cred[0] = self.userBox.GetValue() # Place Username textbox data into the usr_cred list.
+                usr_cred[1] = self.passBox.GetValue() # Place Password textbox data into the usr_cred list.
+
+                if usr_cred[0] == '' or usr_cred[1] == '': # Check if we have any empty Usr/Pass textboxes.
+                    # If we end up here it is because username or password was empty.
+                    mcr = wx.MessageDialog(self,
+                    "Username or Password fields Empty.",
+                    "Empty Fields!", wx.OK|wx.ICON_QUESTION)
+                    result = mcr.ShowModal() # Display Dialog informing empty fields.
+                    mcr.Destroy() # Kill Dialog.
+                else:
+                    # If we end up here both username and password had *something* in them.
+                    # Now to write functionality to check against database!
+                    print "WOOP! NOT EMPTY FIELDS"
+                    usr_cred[2] = usr_cred[0] + "/" + hashlib.md5(usr_cred[1]).hexdigest()
+                    print usr_cred[2]
+                    authlen = len(usr_cred[2])
+                    auth2fill = 16 - (authlen % 16)
+                    authstr = (usr_cred[2] + " " * auth2fill)
+
+                    auth_sel[0] = randint(0,aKeys_n)
+                    auth_sel[1] = randint(0,aKeys_n)
+
+                    acrypt = AES.new(aKeys[auth_sel[0]], AES.MODE_CBC, aKeys[auth_sel[0]][:16])
+                    auth_out = str(auth_sel[0]) + acrypt.encrypt(authstr) + str(auth_sel[1])
+                    print auth_out
+                    # Yep, actual server auth request is handled via a separate function!
+                    # That way it can also be used when sending a message and requesting the message list.
+                    usr_auth = self.AuthPush(auth_out)
+                    if usr_auth = 1: # Check if we have any empty Usr/Pass textboxes.
+                        # If we end up here it is because username or password was empty.
+                        aac = wx.MessageDialog(self,
+                        "Authentication Successful, You may now send and recieve bulletins from the server",
+                        "Authentication Successful", wx.OK|wx.ICON_QUESTION)
+                        result = aac.ShowModal() # Display Dialog informing empty fields.
+                        aac.Destroy() # Kill Dialog.
+                    else:
+            else: # If no Key-Deck is loaded inform the user and push them to the Key-Deck Options.
+                mcd = wx.MessageDialog(self,
+                "No Key-Deck has been Loaded, please enter your Keydeck passphrase to continue.",
+                "No Key-Deck Loaded", wx.OK|wx.ICON_QUESTION)
+                result = mcd.ShowModal() # Display Dialog informing empty fields.
+                mcd.Destroy() # Kill Dialog.
+                self.OnKeyOpts(keydeck)
+            pass
+
+        # AuthPush function used to send a message to the server
+        def AuthPush(self, auth_string):
+            try:
+                self.auth_conn = socket.socket()
+                self.auth_conn.connect((server, int(auth_port)))
+                self.auth_conn.send(auth_string)
+                srv_resp = self.auth_conn.recv(1024)
+                self.auth_conn.shutdown(socket.SHUT_RDWR)
+                self.auth_conn.close()
+                return srv_resp
+            except:
+                pass
+
         # OnSend function used to send a message to the server
         def OnSend(self, event):
             a = randint(0,x)
@@ -483,10 +574,9 @@ def main():
             result = dlg.ShowModal()
             dlg.Destroy()
             if result == wx.ID_OK:
-                print "\033[91mApp killed by File|Exit or App's 'x' button"
-                pullT_status = 1
+                pullT_status = 1 # Send a status of 1 to the pullT_status thread which handles ending app.
             else:
-                print "\033[93mUser chose not to close the App."
+                pass # Just do nothing, User chose not to exit.
 
     app = wx.App(False)
     frame = buBBle_client(None, 'buBBle BBS Client')
