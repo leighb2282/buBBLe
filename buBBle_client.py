@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_client.py
 # Client for buBBle BBS
-# Version v0.2.0
-# 1/27/2016, 5:42:03 PM
+# Version v0.2.1
+# 1/28/2016, 8:21:55 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -505,13 +505,14 @@ def main():
                     auth_sel[0] = randint(0,aKeys_n)
                     auth_sel[1] = randint(0,aKeys_n)
 
-                    acrypt = AES.new(aKeys[auth_sel[0]], AES.MODE_CBC, aKeys[auth_sel[0]][:16])
+                    acrypt = AES.new(aKeys[auth_sel[0]], AES.MODE_CBC, aKeys[auth_sel[1]][:16])
                     auth_out = str(auth_sel[0]) + acrypt.encrypt(authstr) + str(auth_sel[1])
                     print auth_out
+                    print str(auth_sel[0]) + ' : ' + aKeys[auth_sel[0]]
+                    print str(auth_sel[1]) + ' : ' + aKeys[auth_sel[1]][:16]
                     # Yep, actual server auth request is handled via a separate function!
                     # That way it can also be used when sending a message and requesting the message list.
                     usr_auth = self.AuthPush(auth_out)
-                    print usr_auth
                     if usr_auth == '1': # Check to see if server authenticated
                         # If we end up here we were successful.
                         aac = wx.MessageDialog(self,
@@ -545,7 +546,6 @@ def main():
                 srv_resp = self.auth_conn.recv(1024)
                 self.auth_conn.shutdown(socket.SHUT_RDWR)
                 self.auth_conn.close()
-                print srv_resp
                 return srv_resp
                 pass
             except:
