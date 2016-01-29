@@ -36,8 +36,8 @@ usroff = "res/usr_unauth.png"
 pullT_status = 0
 
 # Status codes for Auth status and server status.
-usr_auth = 0 # 0 is unauthorized, 1 is Authorized
-srv_stat = 0 # 0 is Offline, 1 is Online
+usr_auth = '0' # 0 is unauthorized, 1 is Authorized
+srv_stat = '0' # 0 is Offline, 1 is Online
 
 # Key-Deck location for mkeys, v1.0.0 will only have ability to load existing keydeck file created by KrEYate.py.
 # User will be asked to enter their Key-Deck passphrase when looking in the KeyDeck options.
@@ -430,13 +430,13 @@ def main():
                     if srvping == 0:
                         self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgon))
                         srv_stat = 1
-                        if usr_auth == 0:
+                        if usr_auth == '0':
                             self.messageBox.Enable(False)
                             self.sendButton.Enable(False)
                             self.userBox.Enable(True)
                             self.passBox.Enable(True)
                             self.connButton.Enable(True)
-                        elif usr_auth == 1:
+                        elif usr_auth == '1':
                             self.messageBox.Enable(True)
                             self.sendButton.Enable(True)
                             self.userBox.Enable(False)
@@ -511,14 +511,22 @@ def main():
                     # Yep, actual server auth request is handled via a separate function!
                     # That way it can also be used when sending a message and requesting the message list.
                     usr_auth = self.AuthPush(auth_out)
-                    if usr_auth = 1: # Check if we have any empty Usr/Pass textboxes.
-                        # If we end up here it is because username or password was empty.
+                    print usr_auth
+                    if usr_auth == '1': # Check to see if server authenticated
+                        # If we end up here we were successful.
                         aac = wx.MessageDialog(self,
                         "Authentication Successful, You may now send and recieve bulletins from the server",
-                        "Authentication Successful", wx.OK|wx.ICON_QUESTION)
+                        "Authentication Successful.", wx.OK|wx.ICON_QUESTION)
                         result = aac.ShowModal() # Display Dialog informing empty fields.
                         aac.Destroy() # Kill Dialog.
+                        pass
                     else:
+                        adc = wx.MessageDialog(self,
+                        "Authentication Failed, Please Try Again",
+                        "Authentication Failed.", wx.OK|wx.ICON_QUESTION)
+                        result = adc.ShowModal() # Display Dialog informing empty fields.
+                        adc.Destroy()
+                        pass
             else: # If no Key-Deck is loaded inform the user and push them to the Key-Deck Options.
                 mcd = wx.MessageDialog(self,
                 "No Key-Deck has been Loaded, please enter your Keydeck passphrase to continue.",
@@ -537,12 +545,16 @@ def main():
                 srv_resp = self.auth_conn.recv(1024)
                 self.auth_conn.shutdown(socket.SHUT_RDWR)
                 self.auth_conn.close()
+                print srv_resp
                 return srv_resp
+                pass
             except:
+                return '0'
                 pass
 
         # OnSend function used to send a message to the server
         def OnSend(self, event):
+            x = 5
             a = randint(0,x)
             b = randint(0,x)
             c = randint(0,x)
