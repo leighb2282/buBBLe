@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle-server.py
 # Bubble Server
-# Version v0.0.3
-# 1/28/2016, 8:24:50 PM
+# Version v0.1.0
+# 1/30/2016, 12:38:08 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -80,11 +80,31 @@ def main():
             print client_auth
             print str(keyid) + ' : ' + aKeys[int(keyid)]
             print str(ivid) + ' : ' + aKeys[int(ivid)][:16]
-            client_conn.send('1') # We would usually be checking against the PostgreSQL database but for testin purposes we just send '1'
 
+            auth_split = decrypt_auth.split("/")
+            auth_id = str(auth_split[0])
+            auth_pass = str(auth_split[1])[:32]
+
+            conn = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
+            cur = conn.cursor()
+
+            cur.execute('SELECT * from users WHERE username = %r' % (str(auth_id)))
+            row = cur.fetchone()
+            db_id = row[1].rstrip()
+            db_pass = row[2].rstrip()
+            conn.close()
+            print " Encoder Derived Hash: " + auth_pass + str(len(auth_pass))
+            print "Database Derived Hash: " + db_pass + str(len(auth_pass))
+            if auth_pass == db_pass:
+                print "\033[92mACCEPT CONNECTION"
+                client_conn.send('1')
+            else:
+                print "\033[91mREJECT CONNECTION"
+                client_conn.send('0')
             client_conn.close()
             auth_socket.shutdown(socket.SHUT_RDWR)
             auth_socket.close()
+
             print "\033[94mConnection from\033[97m %s \033[94mvia port\033[97m %s" % (client_ip[0], client_ip[1]) # Print debug stuff to console
             time.sleep(1)
             print "\033[94mEncrypted: \033[97m" + client_auth
@@ -141,8 +161,8 @@ def main():
                 if kill_sig == "mentos":
                     print "Killing Threads"
                     authT_status = 1
-                    postT_status = 1
-                    pullT_status = 1
+                    #postT_status = 1
+                    #pullT_status = 1
                     killT_status = 1
                 else:
                     pass
@@ -152,8 +172,8 @@ def main():
 
     # Setting up the threads.
     auth_d = threading.Thread(name='auth thread', target=thread_auth)
-    post_d = threading.Thread(name='post daemon', target=daemon_post)
-    pull_d = threading.Thread(name='pull daemon', target=daemon_pull)
+    #post_d = threading.Thread(name='post daemon', target=daemon_post)
+    #pull_d = threading.Thread(name='pull daemon', target=daemon_pull)
     kill_d = threading.Thread(name='kill thread', target=thread_kill)
 
     # Pretty certain no need for daemonic threading
@@ -163,8 +183,8 @@ def main():
 
     # Start them threads.
     auth_d.start()
-    post_d.start()
-    pull_d.start()
+    #post_d.start()
+    #pull_d.start()
     kill_d.start()
     pass
 

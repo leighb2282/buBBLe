@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_client.py
 # Client for buBBle BBS
-# Version v0.2.1
-# 1/28/2016, 8:21:55 PM
+# Version v0.2.2
+# 1/30/2016, 12:38:29 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -31,6 +31,11 @@ srvon = "res/srv_online.png"
 srvoff = "res/srv_offline.png"
 usron = "res/usr_auth.png"
 usroff = "res/usr_unauth.png"
+
+srv_imgon = wx.Image(srvon, wx.BITMAP_TYPE_PNG)
+srv_imgoff = wx.Image(srvoff, wx.BITMAP_TYPE_PNG)
+usr_imgon = wx.Image(usron, wx.BITMAP_TYPE_PNG)
+usr_imgoff = wx.Image(usroff, wx.BITMAP_TYPE_PNG)
 
 # Pull thread status code
 pullT_status = 0
@@ -326,11 +331,6 @@ def main():
             panel = wx.Panel(self)
 
             emptyimg = wx.EmptyImage(32,32)
-            srv_imgon = wx.Image(srvon, wx.BITMAP_TYPE_PNG)
-            srv_imgoff = wx.Image(srvoff, wx.BITMAP_TYPE_PNG)
-            usr_imgon = wx.Image(usron, wx.BITMAP_TYPE_PNG)
-            usr_imgoff = wx.Image(usroff, wx.BITMAP_TYPE_PNG)
-
 
             # Define the Status Bar
             self.statusbar = self.CreateStatusBar()
@@ -520,14 +520,13 @@ def main():
                         "Authentication Successful.", wx.OK|wx.ICON_QUESTION)
                         result = aac.ShowModal() # Display Dialog informing empty fields.
                         aac.Destroy() # Kill Dialog.
-                        pass
+                        self.usrstatBitmap.SetBitmap(wx.BitmapFromImage(usr_imgon))
                     else:
                         adc = wx.MessageDialog(self,
                         "Authentication Failed, Please Try Again",
                         "Authentication Failed.", wx.OK|wx.ICON_QUESTION)
                         result = adc.ShowModal() # Display Dialog informing empty fields.
                         adc.Destroy()
-                        pass
             else: # If no Key-Deck is loaded inform the user and push them to the Key-Deck Options.
                 mcd = wx.MessageDialog(self,
                 "No Key-Deck has been Loaded, please enter your Keydeck passphrase to continue.",
@@ -535,7 +534,6 @@ def main():
                 result = mcd.ShowModal() # Display Dialog informing empty fields.
                 mcd.Destroy() # Kill Dialog.
                 self.OnKeyOpts(keydeck)
-            pass
 
         # AuthPush function used to send a message to the server
         def AuthPush(self, auth_string):
@@ -547,10 +545,8 @@ def main():
                 self.auth_conn.shutdown(socket.SHUT_RDWR)
                 self.auth_conn.close()
                 return srv_resp
-                pass
             except:
                 return '0'
-                pass
 
         # OnSend function used to send a message to the server
         def OnSend(self, event):
