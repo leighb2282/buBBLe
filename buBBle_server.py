@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle-server.py
 # Bubble Server
-# Version v0.1.0
-# 1/30/2016, 12:38:08 PM
+# Version v0.1.1
+# 1/31/2016, 9:25:15 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -19,10 +19,10 @@ from random import randint # Remove once no longer needed.
 # Set initial variables
 
 # Network Ports
-auth_port = "33751"       # Port used for Authentication.
-push_port = "33752"       # Port used for new incoming posts.
-pull_port = "33753"       # Port used for requesting posts.
-kill_port = "33754"
+auth_port = "33751"     # Port used for Authentication.
+push_port = "33752"     # Port used for new incoming posts.
+pull_port = "33753"     # Port used for requesting posts.
+kill_port = "33754"     # Port used for gracefully killing the threads, mainly for testing.
 
 # Thread status variables
 authT_status = 0
@@ -41,12 +41,10 @@ aKeys = ['52e85caef63299050e4e94f00b0c67c7',
     '26c4ed27f37e394efe0898de01a2817d',
     '84dafaafacb4ea3b0870ab781f8bdbe0',
     '56535b10858d4d4f53afbc8ad051d0e1']
-aKeys_n = len(aKeys)
+aKeys_n = len(aKeys) -1 # Holds the number of keys in aKeys.
 
 def main():
     """ Main entry point for the script."""
-    global conn
-    global cur
 
     def getNetworkIp():
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -72,7 +70,11 @@ def main():
             auth_socket.listen(5)
             client_conn, client_ip = auth_socket.accept()
             client_auth = client_conn.recv(1024)
-
+            if client_auth == "mentos":
+                client_conn.close()
+                auth_socket.shutdown(socket.SHUT_RDWR)
+                auth_socket.close()
+                break
             keyid = client_auth[:1:1]
             ivid = client_auth[-1:]
             deca = AES.new(aKeys[int(keyid)], AES.MODE_CBC, aKeys[int(ivid)][:16])
@@ -85,14 +87,14 @@ def main():
             auth_id = str(auth_split[0])
             auth_pass = str(auth_split[1])[:32]
 
-            conn = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
-            cur = conn.cursor()
+            auth_db = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
+            auth_cur = auth_db.cursor()
 
-            cur.execute('SELECT * from users WHERE username = %r' % (str(auth_id)))
-            row = cur.fetchone()
+            auth_cur.execute('SELECT * from users WHERE username = %r' % (str(auth_id)))
+            row = auth_cur.fetchone()
             db_id = row[1].rstrip()
             db_pass = row[2].rstrip()
-            conn.close()
+            auth_db.close()
             print " Encoder Derived Hash: " + auth_pass + str(len(auth_pass))
             print "Database Derived Hash: " + db_pass + str(len(auth_pass))
             if auth_pass == db_pass:
