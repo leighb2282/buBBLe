@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_srvkill.py
 # Quick script to trip the kill routine on the server.
-# Version v1.0.0
-# 1/28/2016, 7:42:17 PM
+# Version v2.0.0
+# 2/8/2016, 3:25:18 PM
 # Leigh Burton, lburton@metacache.net
 
 
@@ -12,6 +12,7 @@ import sys
 # Variables!
 server = "192.168.0.100"
 auth_port = "33751"
+post_port = "33752"
 kill_port = "33754"
 
 def main():
@@ -27,6 +28,11 @@ def main():
     auth_conn.shutdown(socket.SHUT_RDWR)
     auth_conn.close()
 
+    post_conn = socket.socket()
+    post_conn.connect((server, int(post_port)))
+    post_conn.send('mentos')
+    post_conn.shutdown(socket.SHUT_RDWR)
+    post_conn.close()
     pass
 
 if __name__ == '__main__':

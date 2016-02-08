@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_client.py
 # Client for buBBle BBS
-# Version v0.2.2
-# 1/30/2016, 12:38:29 PM
+# Version v0.2.3
+# 2/8/2016, 3:25:41 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -22,7 +22,7 @@ server = "192.168.0.100"
 
 # Network Ports
 auth_port = "33751"       # Port used for Authentication.
-push_port = "33752"       # Port used for new incoming posts.
+post_port = "33752"       # Port used for new incoming posts.
 pull_port = "33753"       # Port used for requesting posts.
 
 # Various Images (App Icon, in-app buttons)
@@ -69,11 +69,11 @@ aKeys = ['52e85caef63299050e4e94f00b0c67c7',
     '56535b10858d4d4f53afbc8ad051d0e1']
 aKeys_n = len(aKeys) -1 # Holds the number of keys in aKeys.
 
-# Location for Username and Password credentials.
-usr_cred = ['','','']
 
-# Variable to hold Auth string.
-auth_out = ""
+usr_cred = ['','',''] # Location for Username and Password credentials.
+#auth_out = "" # Variable to hold Auth string.
+auth_str = "" #
+post_token = "" # Post Token used to confirm authentication while posting a bulletin
 
 def main():
     """ Main entry point for buBBle."""
@@ -474,7 +474,9 @@ def main():
             global keydeck
             global usr_auth
             global usr_cred
-            global auth_out
+            #global auth_out
+            global auth_str
+            global post_token
 
             auth_sel = ['','']
 
@@ -500,21 +502,27 @@ def main():
                     print usr_cred[2]
                     authlen = len(usr_cred[2])
                     auth2fill = 16 - (authlen % 16)
-                    authstr = (usr_cred[2] + " " * auth2fill)
+                    auth_str = (usr_cred[2] + " " * auth2fill)
 
                     auth_sel[0] = randint(0,aKeys_n)
                     auth_sel[1] = randint(0,aKeys_n)
 
                     acrypt = AES.new(aKeys[auth_sel[0]], AES.MODE_CBC, aKeys[auth_sel[1]][:16])
-                    auth_out = str(auth_sel[0]) + acrypt.encrypt(authstr) + str(auth_sel[1])
+                    auth_out = str(auth_sel[0]) + acrypt.encrypt(auth_str) + str(auth_sel[1])
                     print auth_out
                     print str(auth_sel[0]) + ' : ' + aKeys[auth_sel[0]]
                     print str(auth_sel[1]) + ' : ' + aKeys[auth_sel[1]][:16]
                     # Yep, actual server auth request is handled via a separate function!
                     # That way it can also be used when sending a message and requesting the message list.
-                    usr_auth = self.AuthPush(auth_out)
-                    if usr_auth == '1': # Check to see if server authenticated
+                    usr_auth_token = self.AuthPush(auth_out)
+                    if usr_auth_token[:1] == '1': # Check to see if server authenticated
                         # If we end up here we were successful.
+                        usr_auth = '1'
+                        token_encrypted = usr_auth_token[1:]
+                        key_token = token_encrypted[:1:1]
+                        iv_token = token_encrypted[-1:]
+                        token_dec = AES.new(aKeys[int(key_token)], AES.MODE_CBC, aKeys[int(iv_token)][:16])
+                        post_token = token_dec.decrypt(token_encrypted[1:-1])
                         aac = wx.MessageDialog(self,
                         "Authentication Successful, You may now send and recieve bulletins from the server",
                         "Authentication Successful.", wx.OK|wx.ICON_QUESTION)
@@ -550,12 +558,20 @@ def main():
 
         # OnSend function used to send a message to the server
         def OnSend(self, event):
-            x = 5
-            a = randint(0,x)
-            b = randint(0,x)
-            c = randint(0,x)
-            print "\033[91mX: \033[97m" + str(x) + "\033[91m A: \033[97m" + str(a) + "\033[91m B: \033[97m" + str(b) + "\033[91m C: \033[97m" + str(c)
-            pass
+            # With Authentication handled and a token provided we can now push messages to the server.
+            # Using the token for authentication.
+            print "Token: " + post_token
+            token_sel = ['','']
+            token_sel[0] = randint(0,aKeys_n)
+            token_sel[1] = randint(0,aKeys_n)
+            token_crypt = AES.new(aKeys[token_sel[0]], AES.MODE_CBC, aKeys[token_sel[1]][:16])
+            token_enc = str(token_sel[0]) + token_crypt.encrypt(post_token) + str(token_sel[1])
+            self.post_conn = socket.socket()
+            self.post_conn.connect((server, int(post_port)))
+            self.post_conn.send(token_enc)
+            #srv_resp = self.post_conn.recv(1024)
+            self.post_conn.shutdown(socket.SHUT_RDWR)
+            self.post_conn.close()
 
         # OnMouseOver functions for widgets
         def OnMouseOver(self,event):
