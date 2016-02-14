@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_client.py
 # Client for buBBle BBS
-# Version v0.2.3
-# 2/8/2016, 3:25:41 PM
+# Version v0.3.0
+# 2/14/2016, 12:21:01 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -267,7 +267,7 @@ def main():
                             mKeys_t = mKeys[0]
                             self.titleBox.SetValue(mKeys_t)
                             del mKeys[0]
-                            mKeys_n = len(mKeys)
+                            mKeys_n = len(mKeys) -1
                             self.k0box.SetValue(mKeys[0])
                             self.k1box.SetValue(mKeys[1])
                             self.k2box.SetValue(mKeys[2])
@@ -418,7 +418,7 @@ def main():
             panel.Layout()
             self.Show(True) # show shit!
 
-            def daemon_srvstat():
+            def thread_srvstat():
                 global pullT_status
                 global srv_stat
 
@@ -442,6 +442,7 @@ def main():
                             self.userBox.Enable(False)
                             self.passBox.Enable(False)
                             self.connButton.Enable(False)
+                            self.OnPull(1)
                     else:
                         self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgoff))
                         srv_stat = 0
@@ -456,7 +457,7 @@ def main():
                 self.Destroy() # GUI dedded :(
                 sys.exit() # App dedded :(
 
-            srv_d = threading.Thread(name='recv daemon', target=daemon_srvstat)
+            srv_d = threading.Thread(name='recv daemon', target=thread_srvstat)
             #srv_d.setDaemon(True)
             srv_d.start()
 
@@ -464,8 +465,15 @@ def main():
         def OnKeyOpts(self,event):
             dialog = keydeckFrame(self, -1)
 
-        # OnPull function to get posts from server
-        def OnPull(self):
+        # OnPull function to get posts from server This is the function that actually pulls posts
+        def OnPull(self, event):
+            print "EVENT: " + str(event)
+            if str(event) == str('0'):
+                print "Pull requested because new post."
+            elif str(event) == str('1'):
+                print "Pull requested because of Pull Thread."
+            else:
+                print "No Pull!"
             pass
 
         # OnAuth function used to send a message to the server
@@ -543,7 +551,7 @@ def main():
                 mcd.Destroy() # Kill Dialog.
                 self.OnKeyOpts(keydeck)
 
-        # AuthPush function used to send a message to the server
+        # AuthPush function used check credentials against server
         def AuthPush(self, auth_string):
             try:
                 self.auth_conn = socket.socket()
@@ -558,20 +566,43 @@ def main():
 
         # OnSend function used to send a message to the server
         def OnSend(self, event):
+            mesk = ['','']
             # With Authentication handled and a token provided we can now push messages to the server.
             # Using the token for authentication.
-            print "Token: " + post_token
-            token_sel = ['','']
-            token_sel[0] = randint(0,aKeys_n)
-            token_sel[1] = randint(0,aKeys_n)
-            token_crypt = AES.new(aKeys[token_sel[0]], AES.MODE_CBC, aKeys[token_sel[1]][:16])
-            token_enc = str(token_sel[0]) + token_crypt.encrypt(post_token) + str(token_sel[1])
-            self.post_conn = socket.socket()
-            self.post_conn.connect((server, int(post_port)))
-            self.post_conn.send(token_enc)
-            #srv_resp = self.post_conn.recv(1024)
-            self.post_conn.shutdown(socket.SHUT_RDWR)
-            self.post_conn.close()
+            if self.messageBox.GetValue() == '': # Check if we have any empty Usr/Pass textboxes.
+                # If we end up here it is because username or password was empty.
+                mcr = wx.MessageDialog(self,
+                "You currently have no text in your messagebox, please add your message.",
+                "Empty MessageBox!", wx.OK|wx.ICON_QUESTION)
+                result = mcr.ShowModal() # Display Dialog informing empty fields.
+                mcr.Destroy() # Kill Dialog.
+            else:
+                # If we end up here both username and password had *something* in them.
+                print "Token: " + post_token
+                token_sel = ['','']
+                token_sel[0] = randint(0,aKeys_n)
+                token_sel[1] = randint(0,aKeys_n)
+                token_crypt = AES.new(aKeys[token_sel[0]], AES.MODE_CBC, aKeys[token_sel[1]][:16])
+                token_enc = str(token_sel[0]) + token_crypt.encrypt(post_token) + str(token_sel[1])
+                self.post_conn = socket.socket()
+                self.post_conn.connect((server, int(post_port)))
+                self.post_conn.send(token_enc)
+                token_resp = self.post_conn.recv(1024)
+                if token_resp == '1':
+                    msg = self.messageBox.GetValue()
+                    mesk[0] = randint(0,mKeys_n)
+                    mesk[1] = randint(0,mKeys_n)
+                    messlen = len(msg)
+                    num2fill = 16 - (messlen % 16)
+                    msg = (msg + " " * num2fill)
+
+                    post_crypt = AES.new(mKeys[mesk[0]], AES.MODE_CBC, mKeys[mesk[1]][:16])
+                    post_enc = str(mesk[0]) + token_crypt.encrypt(post_token) + str(mesk[1])
+                    self.post_conn.send(post_enc)
+                    self.messageBox.SetValue('')
+                    self.OnPull(0)
+                self.post_conn.shutdown(socket.SHUT_RDWR)
+                self.post_conn.close()
 
         # OnMouseOver functions for widgets
         def OnMouseOver(self,event):

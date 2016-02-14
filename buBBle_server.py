@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle-server.py
 # Bubble Server
-# Version v0.1.2
-# 2/8/2016, 3:25:03 PM
+# Version v0.2.0
+# 2/14/2016, 12:20:42 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -13,6 +13,7 @@ import threading
 import hashlib
 import time
 import psycopg2
+import base64
 
 from Crypto.Cipher import AES
 from random import randint # Remove once no longer needed.
@@ -165,8 +166,23 @@ def main():
             if client_token in post_tokens:
                 print "yay! existing Token!"
                 print post_tokens[client_token]
-                #will inform the cient of good token
-                #then recieve a post.
+                post_conn.send('1') # Inform good token!
+                bb_post = post_conn.recv(1024) #Recieve BB Post.
+                postid = bb_post[:1:1]
+                postiv = bb_post[-1:]
+                bb_post64 = base64.b64encode(bb_post)
+                print " Recieved Post: " + bb_post
+                print "Base64 Encoded: " + bb_post64
+                print "Base64 Decoded: " + base64.b64decode(bb_post64)
+                try:
+                    post_db = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
+                    post_cur = post_db.cursor()
+                    post_cur.execute('INSERT INTO general (ID_user, content, viewable) VALUES (%s, %s, %s)', (post_tokens[client_token], bb_post64, True))
+                    post_db.commit()
+                    post_db.close()
+                    print "Commit Successful!"
+                except:
+                    print "Commit Failed."
             post_conn.close()
             post_socket.shutdown(socket.SHUT_RDWR)
             post_socket.close()
