@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle-server.py
 # Bubble Server
-# Version v0.2.0
-# 2/14/2016, 12:20:42 PM
+# Version v1.0.0
+# 2/15/2016, 11:02:28 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -19,7 +19,8 @@ from Crypto.Cipher import AES
 from random import randint # Remove once no longer needed.
 
 # Set initial variables
-
+server = "" # Will contain external server IP
+kill_safety = "mentos"
 # Network Ports
 auth_port = "33751"     # Port used for Authentication.
 post_port = "33752"     # Port used for new incoming posts.
@@ -37,6 +38,8 @@ killT_status = 0
 # Once the post thread has recieved a bulletin it will remove the token from the list.
 post_tokens = {}
 
+# Variable to hold current numebr of posts
+general_newest = 0
 # aKeys is used for encrypting the authentication string when sending it to the server.
 aKeys = ['52e85caef63299050e4e94f00b0c67c7',
     '57f9b6a737ed012d213ef7d92452d0e2',
@@ -52,11 +55,23 @@ aKeys_n = len(aKeys) -1 # Holds the number of keys in aKeys.
 
 def main():
     """ Main entry point for the script."""
+    global server
+    global general_newest
+
+    # I would put this in a function but as this is used only once in this particular way
+    # I am putting it here to be ran at script startup to get newest post ID
+    srv_db = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432") # Connect to DB
+    srv_cur = srv_db.cursor() #generate a cursor
+    srv_cur.execute("SELECT COUNT(*) from general") # Get a count of all entries
+    general_newest = int(str(srv_cur.fetchall()).replace("[(", "").replace("L,)]", "")) # Manage that into a single integer held in general_newest
+    srv_db.close() # Close connection to the DB
 
     def getNetworkIp():
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 0))
         return s.getsockname()[0]
+
+    server = getNetworkIp()
 
     # Authentication Function.
     # Used to check credentials against the users table. Is used by all 3 threads.
@@ -83,7 +98,8 @@ def main():
     # Auth Thread.
     # Used to auth users either via the 'Auth button or when someone sends a message.
     def thread_auth():
-        server = getNetworkIp()
+        global kill_safety
+        global server
         global authT_status
         while authT_status == 0:
             print "\033[97mWaiting for Connection"
@@ -94,7 +110,7 @@ def main():
             auth_socket.listen(5)
             auth_conn, client_ip = auth_socket.accept()
             client_auth = auth_conn.recv(1024)
-            if client_auth == "mentos":
+            if client_auth == kill_safety:
                 auth_conn.close()
                 auth_socket.shutdown(socket.SHUT_RDWR)
                 auth_socket.close()
@@ -111,25 +127,28 @@ def main():
             auth_user = str(auth_split[0])
             auth_pass = str(auth_split[1])[:32]
 
-            auth_db = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
-            auth_cur = auth_db.cursor()
+            try:
+                auth_db = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
+                auth_cur = auth_db.cursor()
 
-            auth_cur.execute('SELECT * from users WHERE username = %r' % (str(auth_user)))
-            row = auth_cur.fetchone()
-            db_id = row[0]
-            db_user = row[1].rstrip()
-            db_pass = row[2].rstrip()
-            auth_db.close()
-            print " \033[94mEncoder Derived Hash: \033[97m" + auth_pass
-            print "\033[94mDatabase Derived Hash: \033[97m" + db_pass
-            if auth_pass == db_pass:
-                print "\033[92mACCEPT CONNECTION (Auth Successful)"
-                token,token_raw = token_gen()
-                post_tokens[token_raw] = db_id
-                auth_conn.send(str('1') + token)
-
-            else:
-                print "\033[91mREJECT CONNECTION"
+                auth_cur.execute('SELECT * from users WHERE username = %r' % (str(auth_user)))
+                row = auth_cur.fetchone()
+                db_id = row[0]
+                db_user = row[1].rstrip()
+                db_pass = row[2].rstrip()
+                auth_db.close()
+                print " \033[94mEncoder Derived Hash: \033[97m" + auth_pass
+                print "\033[94mDatabase Derived Hash: \033[97m" + db_pass
+                if auth_pass == db_pass:
+                    print "\033[92mACCEPT CONNECTION (Auth Successful)"
+                    token,token_raw = token_gen()
+                    post_tokens[token_raw] = db_id
+                    auth_conn.send(str('1') + token)
+                else:
+                    print "\033[91mREJECT CONNECTION"
+                    auth_conn.send('0')
+            except:
+                print "Something borked."
                 auth_conn.send('0')
             auth_conn.close()
             auth_socket.shutdown(socket.SHUT_RDWR)
@@ -142,17 +161,18 @@ def main():
     # Post Thread.
     # Used to store posts into the relevant databases.
     def thread_post():
-        server = getNetworkIp()
-        global authT_status
-        while authT_status == 0:
-            global postT_status
+        global kill_safety
+        global server
+        global postT_status
+        global general_newest
+        while postT_status == 0:
             post_socket = socket.socket()
             post_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             post_socket.bind((server, int(post_port)))
             post_socket.listen(5)
             post_conn, client_ip = post_socket.accept()
             token_post = post_conn.recv(1024)
-            if token_post == "mentos":
+            if token_post == kill_safety:
                 post_conn.close()
                 post_socket.shutdown(socket.SHUT_RDWR)
                 post_socket.close()
@@ -164,20 +184,19 @@ def main():
             print client_token
             # Here wil be decrypt for token post_token will be variable.
             if client_token in post_tokens:
-                print "yay! existing Token!"
                 print post_tokens[client_token]
                 post_conn.send('1') # Inform good token!
                 bb_post = post_conn.recv(1024) #Recieve BB Post.
                 postid = bb_post[:1:1]
                 postiv = bb_post[-1:]
                 bb_post64 = base64.b64encode(bb_post)
-                print " Recieved Post: " + bb_post
-                print "Base64 Encoded: " + bb_post64
-                print "Base64 Decoded: " + base64.b64decode(bb_post64)
+                post_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 try:
                     post_db = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
                     post_cur = post_db.cursor()
-                    post_cur.execute('INSERT INTO general (ID_user, content, viewable) VALUES (%s, %s, %s)', (post_tokens[client_token], bb_post64, True))
+                    post_cur.execute('INSERT INTO general (ID_user, content, pdate, viewable) VALUES (%s, %s, %s, %s)', (post_tokens[client_token], bb_post64, post_time, True))
+                    post_cur.execute('SELECT COUNT(*) from general')
+                    general_newest = int(str(post_cur.fetchall()).replace("[(", "").replace("L,)]", ""))
                     post_db.commit()
                     post_db.close()
                     print "Commit Successful!"
@@ -192,19 +211,67 @@ def main():
     # Pull Thread
     # Used to deliver posts from the relevant database to a client.
     def thread_pull():
-        z = 0
+        global kill_safety
+        global server
+        global general_newest
         global pullT_status
-        while z < 10:
-            c = randint(0,5)
-            print "\033[93mPull "+ str(z) + " sleeping for " + str(c) + " Seconds.\n"
-            time.sleep(c)
-            z = z + 1
-            pullT_status = pullT_status + c
-        print "\033[91mPull total: " + str(pullT_status) + "\n"
+        while pullT_status == 0:
+            pull_socket = socket.socket()
+            pull_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            pull_socket.bind((server, int(pull_port)))
+            pull_socket.listen(5)
+            pull_conn, client_ip = pull_socket.accept()
+            token_pull = pull_conn.recv(1024)
+            if token_pull == kill_safety:
+                pull_conn.close()
+                pull_socket.shutdown(socket.SHUT_RDWR)
+                pull_socket.close()
+                break
+            key_token = token_pull[:1:1]
+            iv_token = token_pull[-1:]
+            token_dec = AES.new(aKeys[int(key_token)], AES.MODE_CBC, aKeys[int(iv_token)][:16])
+            client_token = token_dec.decrypt(token_pull[1:-1])
+            #print client_token
+            if client_token in post_tokens:
+                #print "yay! existing Token!"
+                #print post_tokens[client_token]
+                pull_conn.send('1|' + str(general_newest)) # Inform good token & send newest post ID
+                postID = pull_conn.recv(1024) #Recieve post ID
+                if postID == 'axe':
+                    #print "Client had latest Post."
+                    pass
+                else:
+                    print "Requested post: " + postID
+                    try:
+                        pull_db = psycopg2.connect(database="bubble", user="bubble", password="B3bb13!",host="127.0.0.1", port="5432")
+                        pull_cur = pull_db.cursor()
+                        pull_cur.execute('SELECT * from general WHERE ID_general = %r' % (str(postID)))
+                        rowg = pull_cur.fetchone()
+                        pull_cur.execute('SELECT * from users WHERE ID_user = %r' % (str(rowg[1])))
+                        rowu = pull_cur.fetchone()
+                        pull_db.close()
+
+                        db_gid = rowg[0]
+                        db_user = rowu[1].strip()
+                        db_content = rowg[2].strip()
+                        db_date = rowg[3].strip()
+                        db_viewable = rowg[4]
+                    except:
+                        print "DB request failed."
+                    if db_viewable == False:
+                        pre_pull = "d" + "|" + str(db_gid) + "|" + db_user + "|" + "Content Marked Private" + "|" + db_date
+                    else:
+                        pre_pull = "v" + "|" + str(db_gid) + "|" + db_user + "|" + db_content + "|" + db_date
+                    pull_conn.send(base64.b64encode(pre_pull))
+            pull_conn.close()
+            pull_socket.shutdown(socket.SHUT_RDWR)
+            pull_socket.close()
+        print "Pull Thread Ending"
         pass
 
     def thread_kill():
-        server = getNetworkIp()
+        global kill_safety
+        global server
         global authT_status
         global postT_status
         global pullT_status
@@ -221,11 +288,11 @@ def main():
                 kill_socket.shutdown(socket.SHUT_RDWR)
                 kill_socket.close()
 
-                if kill_sig == "mentos":
+                if kill_sig == kill_safety:
                     print "Killing Threads"
                     authT_status = 1
                     postT_status = 1
-                    #pullT_status = 1
+                    pullT_status = 1
                     killT_status = 1
                 else:
                     pass
@@ -236,7 +303,7 @@ def main():
     # Setting up the threads.
     auth_d = threading.Thread(name='auth thread', target=thread_auth)
     post_d = threading.Thread(name='post daemon', target=thread_post)
-    #pull_d = threading.Thread(name='pull daemon', target=thread_pull)
+    pull_d = threading.Thread(name='pull daemon', target=thread_pull)
     kill_d = threading.Thread(name='kill thread', target=thread_kill)
 
     # Pretty certain no need for daemonic threading
@@ -247,7 +314,7 @@ def main():
     # Start them threads.
     auth_d.start()
     post_d.start()
-    #pull_d.start()
+    pull_d.start()
     kill_d.start()
     pass
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_client.py
 # Client for buBBle BBS
-# Version v0.3.0
-# 2/14/2016, 12:21:01 PM
+# Version v1.0.0
+# 2/15/2016, 11:02:18 PM
 # Leigh Burton, lburton@metacache.net
 
 # Import modules
@@ -13,6 +13,7 @@ import socket
 import hashlib
 import threading
 import time
+import base64
 
 from Crypto.Cipher import AES
 from random import randint
@@ -37,8 +38,10 @@ srv_imgoff = wx.Image(srvoff, wx.BITMAP_TYPE_PNG)
 usr_imgon = wx.Image(usron, wx.BITMAP_TYPE_PNG)
 usr_imgoff = wx.Image(usroff, wx.BITMAP_TYPE_PNG)
 
-# Pull thread status code
-pullT_status = 0
+# Pull thread related variables
+pullT_status = 0 # The status of the thread, 0 = active, 1 = end the thread
+pullT_current = 0 # the ID of the latest post pulled from the server
+pullT_Newest = 0 # the ID of the newest post ON the server
 
 # Status codes for Auth status and server status.
 usr_auth = '0' # 0 is unauthorized, 1 is Authorized
@@ -181,7 +184,6 @@ def main():
             loc9Sizer.Add(self.k9label, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 2)
 
             btnSizer.Add(self.okButton, 0, wx.ALL, 2)
-            #btnSizer.Add(self.cancelButton, 0, wx.ALL, 2)
 
             keyLSizer.Add(loc0Sizer, 1, wx.ALL|wx.EXPAND, 1)
             keyLSizer.Add(loc1Sizer, 1, wx.ALL|wx.EXPAND, 1)
@@ -261,7 +263,6 @@ def main():
                         mKeys = decrypted.replace(" ", "").replace("[", "").replace("]", "").replace("'", "").split(",")
                         open_keyfile.close()
                         if mKeys[0] == 'VALID':
-                            print "Decrypted Successfully"
                             mKeys_s = mKeys[0]
                             del mKeys[0]
                             mKeys_t = mKeys[0]
@@ -422,38 +423,36 @@ def main():
                 global pullT_status
                 global srv_stat
 
-                #try:
-                while pullT_status == 0:
-                    #print "Daemon: " + str(pullT_status)
-                    srvping = os.system("ping -W 1 -qc 1 " + server + "> /dev/null 2>&1")
-                    #print "Ping: " + str(srvping)
-                    if srvping == 0:
-                        self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgon))
-                        srv_stat = 1
-                        if usr_auth == '0':
+                try:
+                    while pullT_status == 0:
+                        srvping = os.system("ping -W 1 -qc 1 " + server + "> /dev/null 2>&1")
+                        if srvping == 0:
+                            self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgon))
+                            srv_stat = 1
+                            if usr_auth == '0':
+                                self.messageBox.Enable(False)
+                                self.sendButton.Enable(False)
+                                self.userBox.Enable(True)
+                                self.passBox.Enable(True)
+                                self.connButton.Enable(True)
+                            elif usr_auth == '1':
+                                self.messageBox.Enable(True)
+                                self.sendButton.Enable(True)
+                                self.userBox.Enable(False)
+                                self.passBox.Enable(False)
+                                self.connButton.Enable(False)
+                                self.OnPull(1)
+                        else:
+                            self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgoff))
+                            srv_stat = 0
                             self.messageBox.Enable(False)
                             self.sendButton.Enable(False)
-                            self.userBox.Enable(True)
-                            self.passBox.Enable(True)
-                            self.connButton.Enable(True)
-                        elif usr_auth == '1':
-                            self.messageBox.Enable(True)
-                            self.sendButton.Enable(True)
                             self.userBox.Enable(False)
                             self.passBox.Enable(False)
                             self.connButton.Enable(False)
-                            self.OnPull(1)
-                    else:
-                        self.srvstatBitmap.SetBitmap(wx.BitmapFromImage(srv_imgoff))
-                        srv_stat = 0
-                        self.messageBox.Enable(False)
-                        self.sendButton.Enable(False)
-                        self.userBox.Enable(False)
-                        self.passBox.Enable(False)
-                        self.connButton.Enable(False)
-                    time.sleep(1)
-                #except:
-                #    print "Error in Daemon."
+                        time.sleep(2)
+                except:
+                    print "Error in Daemon."
                 self.Destroy() # GUI dedded :(
                 sys.exit() # App dedded :(
 
@@ -467,14 +466,44 @@ def main():
 
         # OnPull function to get posts from server This is the function that actually pulls posts
         def OnPull(self, event):
-            print "EVENT: " + str(event)
-            if str(event) == str('0'):
-                print "Pull requested because new post."
-            elif str(event) == str('1'):
-                print "Pull requested because of Pull Thread."
-            else:
-                print "No Pull!"
-            pass
+            global pullT_current
+            global pullT_Newest
+            try:
+                token_sel = ['','']
+                post_sel = ['','']
+                token_sel[0] = randint(0,aKeys_n)
+                token_sel[1] = randint(0,aKeys_n)
+                token_crypt = AES.new(aKeys[token_sel[0]], AES.MODE_CBC, aKeys[token_sel[1]][:16])
+                token_enc = str(token_sel[0]) + token_crypt.encrypt(post_token) + str(token_sel[1])
+                self.pull_conn = socket.socket()
+                self.pull_conn.connect((server, int(pull_port)))
+                self.pull_conn.send(token_enc)
+                token_resp = self.pull_conn.recv(1024).split('|')
+
+                if token_resp[0] == '1':
+                    pullT_Newest = token_resp[1]
+                    if int(pullT_current) == int(pullT_Newest):
+                        self.pull_conn.send('axe')
+                    else:
+                        pullT_post = pullT_current + 1
+                        self.pull_conn.send(str(pullT_post)) # Send to the server what post I need to get
+                        post_return = base64.b64decode(self.pull_conn.recv(1024))
+                        post_split = post_return.split('|')
+                        pullT_current = pullT_current + 1
+                        if post_split[0] == 'v':
+                            post = base64.b64decode(post_split[3])
+                            post_sel[0] = post[:1:1]
+                            post_sel[1] = post[-1:]
+                            post_t = post[1:-1]
+                            msg_dec = AES.new(mKeys[int(post_sel[0])], AES.MODE_CBC, mKeys[int(post_sel[1])][:16])
+                            post_decrypted = msg_dec.decrypt(post_t)
+                            self.chatBox.AppendText('#' + str(post_split[1]) + ': ' + str(post_split[2]) + ': ' + str(post_split[4]).strip() + '\n' + str(post_decrypted).strip() + '\n')
+                        else:
+                            self.chatBox.AppendText('#' + str(post_split[1]) + ': ' + str(post_split[2]) + ': ' + str(post_split[4]).strip() + '\n' + str(post_split[3]).strip() + '\n')
+            except:
+                print "FAIL SILENTLY!!!! (THIS IS NOT SILENT BTW)"
+            self.pull_conn.shutdown(socket.SHUT_RDWR)
+            self.pull_conn.close()
 
         # OnAuth function used to send a message to the server
         def OnAuth(self, event):
@@ -482,7 +511,6 @@ def main():
             global keydeck
             global usr_auth
             global usr_cred
-            #global auth_out
             global auth_str
             global post_token
 
@@ -505,9 +533,7 @@ def main():
                 else:
                     # If we end up here both username and password had *something* in them.
                     # Now to write functionality to check against database!
-                    print "WOOP! NOT EMPTY FIELDS"
                     usr_cred[2] = usr_cred[0] + "/" + hashlib.md5(usr_cred[1]).hexdigest()
-                    print usr_cred[2]
                     authlen = len(usr_cred[2])
                     auth2fill = 16 - (authlen % 16)
                     auth_str = (usr_cred[2] + " " * auth2fill)
@@ -517,9 +543,7 @@ def main():
 
                     acrypt = AES.new(aKeys[auth_sel[0]], AES.MODE_CBC, aKeys[auth_sel[1]][:16])
                     auth_out = str(auth_sel[0]) + acrypt.encrypt(auth_str) + str(auth_sel[1])
-                    print auth_out
-                    print str(auth_sel[0]) + ' : ' + aKeys[auth_sel[0]]
-                    print str(auth_sel[1]) + ' : ' + aKeys[auth_sel[1]][:16]
+
                     # Yep, actual server auth request is handled via a separate function!
                     # That way it can also be used when sending a message and requesting the message list.
                     usr_auth_token = self.AuthPush(auth_out)
@@ -577,32 +601,35 @@ def main():
                 result = mcr.ShowModal() # Display Dialog informing empty fields.
                 mcr.Destroy() # Kill Dialog.
             else:
-                # If we end up here both username and password had *something* in them.
-                print "Token: " + post_token
-                token_sel = ['','']
-                token_sel[0] = randint(0,aKeys_n)
-                token_sel[1] = randint(0,aKeys_n)
-                token_crypt = AES.new(aKeys[token_sel[0]], AES.MODE_CBC, aKeys[token_sel[1]][:16])
-                token_enc = str(token_sel[0]) + token_crypt.encrypt(post_token) + str(token_sel[1])
-                self.post_conn = socket.socket()
-                self.post_conn.connect((server, int(post_port)))
-                self.post_conn.send(token_enc)
-                token_resp = self.post_conn.recv(1024)
-                if token_resp == '1':
-                    msg = self.messageBox.GetValue()
-                    mesk[0] = randint(0,mKeys_n)
-                    mesk[1] = randint(0,mKeys_n)
-                    messlen = len(msg)
-                    num2fill = 16 - (messlen % 16)
-                    msg = (msg + " " * num2fill)
+                try:
+                    token_sel = ['','']
+                    token_sel[0] = randint(0,aKeys_n)
+                    token_sel[1] = randint(0,aKeys_n)
+                    token_crypt = AES.new(aKeys[token_sel[0]], AES.MODE_CBC, aKeys[token_sel[1]][:16])
+                    token_enc = str(token_sel[0]) + token_crypt.encrypt(post_token) + str(token_sel[1])
+                    self.post_conn = socket.socket()
+                    self.post_conn.connect((server, int(post_port)))
+                    self.post_conn.send(token_enc)
+                    token_resp = self.post_conn.recv(1024)
+                    if token_resp == '1':
+                        msg = self.messageBox.GetValue()
+                        mesk[0] = randint(0,mKeys_n)
+                        mesk[1] = randint(0,mKeys_n)
+                        messlen = len(msg)
+                        num2fill = 16 - (messlen % 16)
+                        msg = (msg + " " * num2fill)
+                        post_crypt = AES.new(mKeys[mesk[0]], AES.MODE_CBC, mKeys[mesk[1]][:16])
+                        post_enc = str(mesk[0]) + post_crypt.encrypt(msg) + str(mesk[1])
+                        a = mKeys[mesk[0]]
+                        b = mKeys[mesk[1]][:16]
 
-                    post_crypt = AES.new(mKeys[mesk[0]], AES.MODE_CBC, mKeys[mesk[1]][:16])
-                    post_enc = str(mesk[0]) + token_crypt.encrypt(post_token) + str(mesk[1])
-                    self.post_conn.send(post_enc)
-                    self.messageBox.SetValue('')
-                    self.OnPull(0)
-                self.post_conn.shutdown(socket.SHUT_RDWR)
-                self.post_conn.close()
+                        self.post_conn.send(post_enc)
+                        self.messageBox.SetValue('')
+                        self.OnPull(0)
+                    self.post_conn.shutdown(socket.SHUT_RDWR)
+                    self.post_conn.close()
+                except:
+                    print "Send Failed"
 
         # OnMouseOver functions for widgets
         def OnMouseOver(self,event):

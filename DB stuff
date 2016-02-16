@@ -1,0 +1,37 @@
+sudo apt-get install python-psycopg2
+sudo apt-get install postgresql
+sudo service postgresql start
+sudo passwd postgres
+
+make a 'bubble' Linux user
+adduser bubble
+
+(from postgres user)
+su postgres
+psql
+create user bubble createdb password 'B3bb13!';
+create database bubble owner bubble;
+
+
+su bubble
+psql -U bubble -W
+
+
+CREATE TABLE users (
+    ID_user         serial PRIMARY KEY,
+    username        char(30),
+    password        char(32),
+    email           char(25),
+    active          boolean,
+    zen             boolean
+);
+
+CREATE TABLE general (
+    ID_general          serial PRIMARY KEY,
+    ID_user             int,
+    content             char(1024),
+    pdate               char(20),
+    viewable            boolean
+);
+
+INSERT INTO users (username, password, email, active, zen) VALUES ('testuser', '382e0360e4eb7b70034fbaa69bec5786', 'test@user.com', True, False);
