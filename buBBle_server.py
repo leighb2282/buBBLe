@@ -3,7 +3,20 @@
 # Bubble Server
 # Version v1.0.0
 # 2/15/2016, 11:02:28 PM
-# Leigh Burton, lburton@metacache.net
+# Copyright (C) 2016 Leigh Burton, lburton@metacache.net
+
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import modules
 import os
@@ -16,7 +29,7 @@ import psycopg2
 import base64
 
 from Crypto.Cipher import AES
-from random import randint # Remove once no longer needed.
+from random import randint
 
 # Set initial variables
 server = "" # Will contain external server IP
