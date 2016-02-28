@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # buBBle_srvkill.py
 # Quick script to trip the kill routine on the server.
-# Version v3.0.0
-# 2/14/2016, 7:33:34 PM
+# Version v1.0.1
+# 2/17/2016, 5:57:09 PM
 # Copyright (C) 2016 Leigh Burton, lburton@metacache.net
 
 #This program is free software: you can redistribute it and/or modify
@@ -25,14 +25,21 @@ import sys
 
 # Variables!
 server = "192.168.0.100"
-auth_port = "33751"
-post_port = "33752"
-pull_port = "33753"
-kill_port = "33754"
 
-kill_word = "mentos"
+auth_port = "33751"     # Port used for Authentication.
+post_port = "33752"     # Port used for new incoming posts.
+pull_port = "33753"     # Port used for requesting posts.
+kill_port = "33754"     # Port used for currently shutting down the server
+
+kill_word = "mentos"    #the word that the server knows means end the threads
 
 def main():
+    # The whole point of this little app is to gracefully end the servers threads
+    # kill_conn socket connects to the server to have the kill thread on the server set each of the other threads to a status of 1
+    # We then connect to each of the open sockets (which is waiting for a new connection) and provide the kill word.
+    # once it gets the kill work it will end the thread. allowing the server to shut down gracefully.
+    # Once we develop the server more substantially we can have an interctive shell on the server itself handle this.
+
     kill_conn = socket.socket()
     kill_conn.connect((server, int(kill_port)))
     kill_conn.send(kill_word)
