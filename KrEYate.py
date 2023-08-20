@@ -3,7 +3,7 @@
 # quick Key-Deck creation tool
 # Version v2.0.1
 # 2/17/2016, 5:40:39 PM
-# Copyright (C) 2016 Leigh Burton, lburton@metacache.net
+# Copyright (C) 2016 Leigh Burton, leighb2282@gmail.com
 
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by

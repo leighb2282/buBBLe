@@ -3,7 +3,7 @@
 # Bubble Server
 # Version v1.0.1
 # 2/19/2016, 2:49:31 PM
-# Copyright (C) 2016 Leigh Burton, lburton@metacache.net
+# Copyright (C) 2016 Leigh Burton, leighb2282@gmail.com
 
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -32,6 +32,16 @@ from Crypto.Cipher import AES
 from random import randint
 
 # Set initial variables
+
+# Log related variables.
+logs_enabled = True
+log_folder = "logs/"
+bubb_log = "bubble.log." # Log file for non-specific buBBle related logs.
+auth_access = "bubble_auth_access.log." # Successful/Failed Authentications.
+post_access = "bubble_post_access.log." # Logs pertaining to posting of messages.
+pull_access = "bubble_pull_access.log." # Logs pertaining to pulling of messages.
+man_log = "bubble_manager.log." # Management based logs.
+
 server = "" # Will contain external server IP
 kill_safety = "mentos"
 # Network Ports

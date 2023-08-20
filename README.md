@@ -4,7 +4,12 @@ buBBle-Sphere v1.0.0
 A Connectivity Collection of encryption-focused tools.
 ------------------------------------------------------
 
-Written as a Project for me to learn a lot more about Python, GUI programming via wx, socket networking, encryption, postgreSQL server maintenance, psycopg2 python interaction, and more! Be forewarned, the code is ugly but in a beautiful way! (To me at least!)
+THis is also HORRIBLY insecure for so many reasons
+--------------------------------------------------
+
+Written as a Project in 2016 (7 years ago as i'm re-uploading this in 2023) for me to learn a lot more about Python (2.7), GUI programming via wx, socket networking, encryption, postgreSQL server maintenance, psycopg2 python interaction, and more! Be forewarned, the code is ugly but in a beautiful way! (To me at least!)
+
+I'm re-uploading this because while it IS HORRIBLE code in terms of security, It IS something I wrote that worked back in the day, I'll be getting it set up in a dev environment soon to also write a security review for my portfolio.
 
 Requires: wx.python for the client, psycopg2 for the server.
 
@@ -49,3 +54,7 @@ Planned future improvements
 
 * srv_kill:
   * Depreciate this tool by adding it's functionality into the server itself, srv_kill was written to aid development of the server and is not meant to be a long-term tool.
+
+
+
+<3 char month name> <time> <something1> <process>[<PID>]: <message> port <port #> <something2>

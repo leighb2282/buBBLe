@@ -3,7 +3,7 @@
 # quick Key-Deck decryption tool
 # Version v1.0.2
 # 2/17/2016, 6:20:47 PM
-# Copyright (C) 2016 Leigh Burton, lburton@metacache.net
+# Copyright (C) 2016 Leigh Burton, leighb2282@gmail.com
 
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by

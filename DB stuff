@@ -35,3 +35,7 @@ CREATE TABLE general (
 );
 
 INSERT INTO users (username, password, email, active, zen) VALUES ('testuser', '382e0360e4eb7b70034fbaa69bec5786', 'test@user.com', True, False);
+
+plaintext for this 'testuser' this password is 'P@ssword'
+
+yes its terrible, yes this was dev, yes I was VERY sloppy - Leigh in 2023
